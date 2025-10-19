@@ -57,8 +57,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load cached news first if available
     loadCachedNews();
 
-    // Load fresh news
-    loadNews();
+    // Check if we need to fetch fresh news
+    function shouldFetchFreshNews() {
+        try {
+            const cached = localStorage.getItem('wind_farm_news_cache');
+            if (!cached) {
+                console.log('No cached data found, will fetch fresh news');
+                return true;
+            }
+            const data = JSON.parse(cached);
+            const ageMinutes = (Date.now() - data.timestamp) / (1000 * 60);
+            console.log(`Cached data age: ${ageMinutes.toFixed(1)} minutes`);
+            return ageMinutes >= CONFIG.REFRESH_INTERVAL;
+        } catch (error) {
+            console.error('Error checking cache age:', error);
+            return true;
+        }
+    }
+
+    // Only load fresh news if cache is stale or missing
+    if (shouldFetchFreshNews()) {
+        console.log('Cache is stale or missing, fetching fresh news...');
+        loadNews();
+    } else {
+        console.log('Using cached data (still fresh)');
+        applyFilters();
+        updateStats();
+    }
 
     // Event listeners
     searchBtn.addEventListener('click', performSearch);
@@ -108,15 +133,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update display immediately with current countdown
     updateAutoRefreshStatus(refreshCountdown);
-
-    // If countdown is at 0, data is stale - refresh immediately after initial load
-    if (refreshCountdown <= 0) {
-        console.log('Data is stale (> 60 minutes old), will refresh after initial load...');
-        setTimeout(() => {
-            loadNews();
-            refreshCountdown = CONFIG.REFRESH_INTERVAL * 60;
-        }, 2000); // Wait 2 seconds after page load
-    }
 
     setInterval(() => {
         refreshCountdown--;

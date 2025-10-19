@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Auto-refresh every 15 minutes
+    // Auto-refresh every 60 minutes
     let refreshCountdown = CONFIG.REFRESH_INTERVAL * 60;
     setInterval(() => {
         refreshCountdown--;

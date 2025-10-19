@@ -648,6 +648,15 @@ body {
     .header-content {
         flex-direction: column;
         align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .header {
+        padding: 1.5rem 0;
+    }
+
+    .header h1 {
+        font-size: 1.5rem;
     }
 
     .filters .container {
@@ -666,7 +675,7 @@ body {
     }
 
     .news-grid.grid-view {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     }
 
     .list-view .news-card {
@@ -677,31 +686,192 @@ body {
         width: 100%;
         height: 200px;
     }
+
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
 }
 
 @media (max-width: 640px) {
+    .container {
+        padding: 0 15px;
+    }
+
+    .header {
+        padding: 1.5rem 0;
+    }
+
     .header h1 {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
+    }
+
+    .wind-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .logo {
+        gap: 0.5rem;
+    }
+
+    .last-updated {
+        font-size: 0.75rem;
+        padding: 0.4rem 0.8rem;
     }
 
     .auto-refresh-info {
-        font-size: 0.8rem;
-        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        padding: 0.5rem 0.8rem;
     }
 
     .subtitle {
-        font-size: 1rem;
+        font-size: 0.9rem;
     }
 
-    .stats-grid {
-        grid-template-columns: 1fr;
+    .filters {
+        padding: 1rem 0;
+    }
+
+    .filters .container {
+        gap: 1rem;
     }
 
     .filter-group {
-        flex-direction: column;
+        width: 100%;
     }
 
     .filter-group label {
         width: 100%;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.85rem;
+    }
+
+    .search-box {
+        flex-direction: column;
+    }
+
+    .search-box input,
+    .search-box button {
+        width: 100%;
+        font-size: 0.9rem;
+    }
+
+    .stats {
+        padding: 1.5rem 0;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .stat-icon svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .stat-content h3 {
+        font-size: 1.5rem;
+    }
+
+    .stat-content p {
+        font-size: 0.85rem;
+    }
+
+    .news-feed {
+        padding: 1.5rem 0 3rem;
+    }
+
+    .feed-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .news-grid {
+        gap: 1rem;
+    }
+
+    .news-card-content {
+        padding: 1rem;
+    }
+
+    .news-card h3 {
+        font-size: 1.1rem;
+    }
+
+    .news-card-description {
+        font-size: 0.9rem;
+    }
+
+    .news-card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .province-badge {
+        font-size: 0.7rem;
+        padding: 0.3rem 0.6rem;
+    }
+
+    .tag {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.6rem;
+    }
+
+    .news-card-date {
+        font-size: 0.75rem;
+    }
+
+    .sources {
+        padding: 1.5rem 0;
+    }
+
+    .footer {
+        padding: 1.5rem 0;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 375px) {
+    .container {
+        padding: 0 10px;
+    }
+
+    .header h1 {
+        font-size: 1.1rem;
+    }
+
+    .subtitle {
+        font-size: 0.85rem;
+    }
+
+    .last-updated {
+        font-size: 0.7rem;
+    }
+
+    .filter-group label {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.8rem;
+    }
+
+    .news-card h3 {
+        font-size: 1rem;
+    }
+
+    .news-card-description {
+        font-size: 0.85rem;
+    }
+
+    .stat-content h3 {
+        font-size: 1.25rem;
     }
 }

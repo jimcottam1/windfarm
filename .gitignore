@@ -1,0 +1,20 @@
+# Node.js dependencies
+node_modules/
+
+# Temporary Office files
+~$*.html
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Temporary files
+*.tmp
+*.temp
+
+# Log files
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local

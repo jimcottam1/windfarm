@@ -445,6 +445,24 @@ function showEmptyState(show) {
 }
 
 function updateLastRefreshed() {
+    // Get the actual timestamp from cache
+    try {
+        const cached = localStorage.getItem('wind_farm_news_cache');
+        if (cached) {
+            const data = JSON.parse(cached);
+            const lastFetchTime = new Date(data.timestamp);
+            const timeString = lastFetchTime.toLocaleTimeString('en-IE', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            lastUpdated.textContent = `Last updated: ${timeString}`;
+            return;
+        }
+    } catch (error) {
+        console.error('Error reading last updated time:', error);
+    }
+
+    // Fallback to current time if no cache
     const now = new Date();
     const timeString = now.toLocaleTimeString('en-IE', {
         hour: '2-digit',

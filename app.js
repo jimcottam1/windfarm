@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadNews();
     } else {
         console.log('Using cached data (still fresh)');
+        showLoading(false);
         applyFilters();
         updateStats();
     }

@@ -8,7 +8,7 @@ const CONFIG = {
     API_ENDPOINT: window.location.origin + '/api/articles',
 
     // Auto-refresh interval (minutes)
-    REFRESH_INTERVAL: 15
+    REFRESH_INTERVAL: 60
 };
 
 // Global state
@@ -292,14 +292,7 @@ function createNewsCard(article) {
     card.innerHTML = `
         <div class="news-card-image">
             ${article.image ?
-                `<img src="${article.image}" alt="${article.title}" style="width: 100%; height: 100%; object-fit: cover;">
-                <button class="download-image-btn" title="Download image" data-image-url="${article.image}" data-title="${article.title.replace(/"/g, '&quot;')}">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                        <polyline points="7 10 12 15 17 10"></polyline>
-                        <line x1="12" y1="15" x2="12" y2="3"></line>
-                    </svg>
-                </button>` :
+                `<img src="${article.image}" alt="${article.title}" style="width: 100%; height: 100%; object-fit: cover;">` :
                 `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
                 </svg>`
@@ -324,16 +317,6 @@ function createNewsCard(article) {
             </div>
         </div>
     `;
-
-    // Add download button event listener
-    const downloadBtn = card.querySelector('.download-image-btn');
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            downloadImage(article.image, article.title);
-        });
-    }
 
     return card;
 }
@@ -400,65 +383,6 @@ function switchView(view) {
 
     // Update grid class
     newsGrid.className = `news-grid ${view}-view`;
-}
-
-/* ========================================
-   IMAGE DOWNLOAD
-   ======================================== */
-
-async function downloadImage(imageUrl, articleTitle) {
-    try {
-        console.log('Downloading image:', imageUrl);
-
-        // Show loading indicator
-        const originalCursor = document.body.style.cursor;
-        document.body.style.cursor = 'wait';
-
-        // Fetch the image as a blob
-        const response = await fetch(imageUrl);
-
-        if (!response.ok) {
-            throw new Error('Failed to fetch image');
-        }
-
-        const blob = await response.blob();
-
-        // Create a download link
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-
-        // Create filename from article title (sanitize for filesystem)
-        const sanitizedTitle = articleTitle
-            .replace(/[^a-z0-9]/gi, '-')
-            .replace(/-+/g, '-')
-            .substring(0, 50);
-
-        // Get file extension from blob type or URL
-        let extension = 'jpg';
-        if (blob.type === 'image/png') extension = 'png';
-        else if (blob.type === 'image/jpeg') extension = 'jpg';
-        else if (blob.type === 'image/webp') extension = 'webp';
-
-        link.download = `${sanitizedTitle}.${extension}`;
-
-        // Trigger download
-        document.body.appendChild(link);
-        link.click();
-
-        // Cleanup
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        // Restore cursor
-        document.body.style.cursor = originalCursor;
-
-        console.log('Image downloaded successfully');
-    } catch (error) {
-        console.error('Error downloading image:', error);
-        alert('Failed to download image. The image may be protected or unavailable.');
-        document.body.style.cursor = 'default';
-    }
 }
 
 /* ========================================

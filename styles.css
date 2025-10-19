@@ -707,16 +707,16 @@ img {
     }
 
     .header {
-        padding: 1.5rem 0;
+        padding: 1rem 0;
     }
 
     .header h1 {
-        font-size: 1.25rem;
+        font-size: 1.1rem;
     }
 
     .wind-icon {
-        width: 30px;
-        height: 30px;
+        width: 28px;
+        height: 28px;
     }
 
     .logo {
@@ -724,35 +724,56 @@ img {
     }
 
     .last-updated {
-        font-size: 0.75rem;
-        padding: 0.4rem 0.8rem;
+        font-size: 0.7rem;
+        padding: 0.3rem 0.6rem;
     }
 
     .auto-refresh-info {
-        font-size: 0.75rem;
-        padding: 0.5rem 0.8rem;
+        font-size: 0.7rem;
+        padding: 0.4rem 0.7rem;
     }
 
     .subtitle {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
     }
 
+    /* Hide stats section on mobile to save space */
+    .stats {
+        display: none;
+    }
+
+    /* Compact filters on mobile */
     .filters {
-        padding: 1rem 0;
+        padding: 0.75rem 0;
+        position: relative;
+        /* Remove sticky positioning on mobile */
+        position: static;
+    }
+
+    .filters h4 {
+        font-size: 0.8rem !important;
+        margin-bottom: 0.4rem !important;
+        margin-top: 0.75rem !important;
+    }
+
+    .filters h4:first-child {
+        margin-top: 0 !important;
     }
 
     .filters .container {
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
     .filter-group {
         width: 100%;
+        gap: 0.5rem;
     }
 
     .filter-group label {
         width: 100%;
-        padding: 0.6rem 0.8rem;
-        font-size: 0.85rem;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.8rem;
     }
 
     .search-box {
@@ -762,95 +783,104 @@ img {
     .search-box input,
     .search-box button {
         width: 100%;
-        font-size: 0.9rem;
-    }
-
-    .stats {
-        padding: 1.5rem 0;
-    }
-
-    .stats-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .stat-card {
-        padding: 1rem;
-    }
-
-    .stat-icon {
-        width: 50px;
-        height: 50px;
-    }
-
-    .stat-icon svg {
-        width: 24px;
-        height: 24px;
-    }
-
-    .stat-content h3 {
-        font-size: 1.5rem;
-    }
-
-    .stat-content p {
         font-size: 0.85rem;
+        padding: 0.6rem 0.9rem;
     }
 
+    /* Give more space to news feed */
     .news-feed {
-        padding: 1.5rem 0 3rem;
+        padding: 1rem 0 2rem;
+    }
+
+    .feed-header {
+        margin-bottom: 1rem;
     }
 
     .feed-header h2 {
-        font-size: 1.25rem;
+        font-size: 1.1rem;
+    }
+
+    /* Hide view toggle on mobile */
+    .view-options {
+        display: none;
     }
 
     .news-grid {
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
     .news-grid.grid-view {
         grid-template-columns: 1fr;
     }
 
+    .news-card {
+        border-radius: 8px;
+    }
+
+    .news-card-image {
+        height: 150px;
+    }
+
     .news-card-content {
-        padding: 1rem;
+        padding: 0.9rem;
+    }
+
+    .news-card-header {
+        margin-bottom: 0.6rem;
+        gap: 0.5rem;
     }
 
     .news-card h3 {
-        font-size: 1.1rem;
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
     }
 
     .news-card-description {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
     }
 
     .news-card-footer {
+        padding-top: 0.75rem;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
     }
 
     .province-badge {
-        font-size: 0.7rem;
-        padding: 0.3rem 0.6rem;
+        font-size: 0.65rem;
+        padding: 0.25rem 0.5rem;
     }
 
     .tag {
-        font-size: 0.7rem;
-        padding: 0.2rem 0.6rem;
+        font-size: 0.65rem;
+        padding: 0.2rem 0.5rem;
     }
 
     .news-card-date {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
+    }
+
+    .news-card-source {
+        font-size: 0.8rem;
+    }
+
+    .news-card-link {
+        font-size: 0.85rem;
     }
 
     .sources {
-        padding: 1.5rem 0;
+        padding: 1rem 0;
+    }
+
+    .sources h3 {
+        font-size: 1rem;
     }
 
     .footer {
-        padding: 1.5rem 0;
-        font-size: 0.9rem;
+        padding: 1rem 0;
+        font-size: 0.85rem;
     }
 }
 

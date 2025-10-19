@@ -1,6 +1,26 @@
 const fetch = require('node-fetch');
 const xml2js = require('xml2js');
 
+// Helper function to check if image URL is likely unwanted
+function isUnwantedImage(imageUrl) {
+    if (!imageUrl) return true;
+
+    const url = imageUrl.toLowerCase();
+
+    // Skip data URLs
+    if (url.startsWith('data:')) return true;
+
+    // Skip common unwanted patterns
+    const unwantedPatterns = [
+        'logo', 'icon', 'avatar', 'pixel', 'tracking',
+        'button', 'badge', 'banner', 'ad.', 'ads.',
+        'spacer', 'blank', '1x1', 'placeholder',
+        'social', 'share', 'facebook', 'twitter', 'linkedin'
+    ];
+
+    return unwantedPatterns.some(pattern => url.includes(pattern));
+}
+
 // Helper function to extract og:image from article page
 async function fetchArticleImage(url) {
     try {
@@ -29,6 +49,21 @@ async function fetchArticleImage(url) {
 
         if (twitterImageMatch) {
             return twitterImageMatch[1];
+        }
+
+        // Fallback to first suitable <img> tag in the article content
+        // Look for img tags with src attribute
+        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+        let imgMatch;
+
+        while ((imgMatch = imgRegex.exec(html)) !== null) {
+            const imgUrl = imgMatch[1];
+
+            // Skip unwanted images
+            if (isUnwantedImage(imgUrl)) continue;
+
+            // Found a potentially good image
+            return imgUrl;
         }
 
         return null;
@@ -207,8 +242,8 @@ async function fetchGoogleNews() {
             return new Date(b.date) - new Date(a.date);
         });
 
-        // Limit to 100 articles
-        const limitedArticles = uniqueArticles.slice(0, 100);
+        // Limit to 200 articles
+        const limitedArticles = uniqueArticles.slice(0, 200);
 
         // Fetch real images for articles with placeholder images (limit to first 30 to avoid timeout)
         console.log('Fetching featured images from article pages...');

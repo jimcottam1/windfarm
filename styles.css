@@ -38,12 +38,19 @@ body {
     line-height: 1.6;
     color: var(--text-color);
     background-color: var(--light-color);
+    overflow-x: hidden;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 20px;
+    width: 100%;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
 }
 
 /* ========================================
@@ -352,7 +359,7 @@ body {
 }
 
 .news-grid.grid-view {
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
 }
 
 /* News Card */
@@ -493,6 +500,8 @@ body {
     color: var(--dark-color);
     margin-bottom: 0.75rem;
     line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .news-card-description {
@@ -797,6 +806,10 @@ body {
 
     .news-grid {
         gap: 1rem;
+    }
+
+    .news-grid.grid-view {
+        grid-template-columns: 1fr;
     }
 
     .news-card-content {

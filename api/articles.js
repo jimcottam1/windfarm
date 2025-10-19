@@ -1,6 +1,43 @@
 const fetch = require('node-fetch');
 const xml2js = require('xml2js');
 
+// Helper function to extract og:image from article page
+async function fetchArticleImage(url) {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 5000 // 5 second timeout
+        });
+
+        if (!response.ok) return null;
+
+        const html = await response.text();
+
+        // Look for og:image meta tag
+        const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+                            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i);
+
+        if (ogImageMatch) {
+            return ogImageMatch[1];
+        }
+
+        // Fallback to twitter:image
+        const twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+                                 html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["'][^>]*>/i);
+
+        if (twitterImageMatch) {
+            return twitterImageMatch[1];
+        }
+
+        return null;
+    } catch (error) {
+        console.error(`Error fetching image for ${url}:`, error.message);
+        return null;
+    }
+}
+
 // Configuration
 const CONFIG = {
     GOOGLE_NEWS_FEEDS: [
@@ -171,7 +208,28 @@ async function fetchGoogleNews() {
         });
 
         // Limit to 100 articles
-        return uniqueArticles.slice(0, 100);
+        const limitedArticles = uniqueArticles.slice(0, 100);
+
+        // Fetch real images for articles with placeholder images (limit to first 30 to avoid timeout)
+        console.log('Fetching featured images from article pages...');
+        const articlesToEnhance = limitedArticles.slice(0, 30);
+        let enhancedCount = 0;
+
+        for (const article of articlesToEnhance) {
+            // Check if using placeholder (Unsplash URL)
+            if (article.image && article.image.includes('unsplash.com')) {
+                const realImage = await fetchArticleImage(article.url);
+                if (realImage) {
+                    article.image = realImage;
+                    enhancedCount++;
+                }
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
+        console.log(`Enhanced ${enhancedCount} articles with real images`);
+        return limitedArticles;
     } catch (error) {
         console.error('Error in fetchGoogleNews:', error);
         throw error;

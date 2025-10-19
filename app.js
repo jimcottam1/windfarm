@@ -87,8 +87,37 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Auto-refresh every 60 minutes
-    let refreshCountdown = CONFIG.REFRESH_INTERVAL * 60;
+    // Auto-refresh every 60 minutes with persistent countdown
+    function getTimeRemaining() {
+        try {
+            const cached = localStorage.getItem('wind_farm_news_cache');
+            if (cached) {
+                const data = JSON.parse(cached);
+                const elapsedSeconds = Math.floor((Date.now() - data.timestamp) / 1000);
+                const remainingSeconds = (CONFIG.REFRESH_INTERVAL * 60) - elapsedSeconds;
+                return Math.max(0, remainingSeconds);
+            }
+        } catch (error) {
+            console.error('Error calculating time remaining:', error);
+        }
+        return CONFIG.REFRESH_INTERVAL * 60;
+    }
+
+    let refreshCountdown = getTimeRemaining();
+    console.log(`Countdown initialized to ${Math.floor(refreshCountdown / 60)}m ${refreshCountdown % 60}s`);
+
+    // Update display immediately with current countdown
+    updateAutoRefreshStatus(refreshCountdown);
+
+    // If countdown is at 0, data is stale - refresh immediately after initial load
+    if (refreshCountdown <= 0) {
+        console.log('Data is stale (> 60 minutes old), will refresh after initial load...');
+        setTimeout(() => {
+            loadNews();
+            refreshCountdown = CONFIG.REFRESH_INTERVAL * 60;
+        }, 2000); // Wait 2 seconds after page load
+    }
+
     setInterval(() => {
         refreshCountdown--;
         updateAutoRefreshStatus(refreshCountdown);

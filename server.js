@@ -189,11 +189,8 @@ async function fetchGoogleNews() {
             return true;
         });
 
-        // Sort by province, then by date
-        const provinceOrder = { 'Munster': 1, 'Leinster': 2, 'Connacht': 3, 'Ulster': 4, 'National': 5 };
+        // Sort by date (newest first)
         uniqueArticles.sort((a, b) => {
-            const provinceCompare = (provinceOrder[a.province] || 5) - (provinceOrder[b.province] || 5);
-            if (provinceCompare !== 0) return provinceCompare;
             return new Date(b.date) - new Date(a.date);
         });
 

@@ -292,6 +292,11 @@ function applyFilters() {
         });
     }
 
+    // Sort by date (newest first)
+    filtered.sort((a, b) => {
+        return new Date(b.date) - new Date(a.date);
+    });
+
     filteredArticles = filtered;
     displayArticles();
 }

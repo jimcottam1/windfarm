@@ -218,8 +218,14 @@ img {
 .filters .container {
     display: flex;
     gap: 2rem;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: wrap;
+}
+
+.filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .filter-group {

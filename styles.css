@@ -103,6 +103,79 @@ img {
 }
 
 /* ========================================
+   NEWS TICKER
+   ======================================== */
+
+.news-ticker-wrapper {
+    background: linear-gradient(90deg, #059669, #10b981);
+    color: var(--white);
+    overflow: hidden;
+    border-bottom: 3px solid #047857;
+    display: flex;
+    align-items: center;
+}
+
+.ticker-label {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ticker-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--white);
+}
+
+.news-ticker {
+    flex: 1;
+    overflow: hidden;
+    padding: 0.75rem 0;
+}
+
+.ticker-content {
+    display: inline-block;
+    white-space: nowrap;
+    animation: ticker 60s linear infinite;
+    padding-left: 100%;
+}
+
+.ticker-content span {
+    display: inline-block;
+    padding: 0 3rem;
+    font-size: 0.95rem;
+}
+
+.ticker-content span::after {
+    content: "•";
+    margin-left: 3rem;
+    opacity: 0.5;
+}
+
+.ticker-content span:last-child::after {
+    content: "";
+}
+
+@keyframes ticker {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-100%);
+    }
+}
+
+.news-ticker-wrapper:hover .ticker-content {
+    animation-play-state: paused;
+}
+
+/* ========================================
    FILTERS
    ======================================== */
 

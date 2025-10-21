@@ -24,6 +24,7 @@ const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const lastUpdated = document.getElementById('lastUpdated');
 const autoRefreshStatus = document.getElementById('autoRefreshStatus');
+const tickerContent = document.getElementById('tickerContent');
 
 // Province filter checkboxes
 const filterMunster = document.getElementById('filterMunster');
@@ -188,6 +189,7 @@ async function loadNews() {
         // Apply filters and display
         applyFilters();
         updateStats();
+        updateTicker();
 
     } catch (error) {
         console.error('Error loading news:', error);
@@ -223,6 +225,7 @@ function loadCachedNews() {
                 applyFilters();
                 updateStats();
                 updateLastRefreshed();
+                updateTicker();
                 console.log(`Loaded ${allArticles.length} cached articles`);
             } else {
                 console.log('Cache expired, will fetch fresh news');
@@ -520,6 +523,40 @@ function animateRefreshIcon() {
             refreshIcon.style.animation = '';
         }, 1000);
     }
+}
+
+/* ========================================
+   NEWS TICKER
+   ======================================== */
+
+function updateTicker() {
+    if (!tickerContent) return;
+
+    // Filter articles for Limerick
+    const limerickArticles = allArticles.filter(article => {
+        const text = (article.title + ' ' + article.description).toLowerCase();
+        return text.includes('limerick');
+    });
+
+    if (limerickArticles.length === 0) {
+        tickerContent.innerHTML = '<span>No Limerick wind farm news available at this time</span>';
+        return;
+    }
+
+    // Sort by date (newest first) and take the most recent 10
+    const sortedArticles = limerickArticles
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 10);
+
+    // Create ticker HTML
+    const tickerHTML = sortedArticles
+        .map(article => `<span>${article.title} - ${article.source}</span>`)
+        .join('');
+
+    // Duplicate content for seamless loop
+    tickerContent.innerHTML = tickerHTML + tickerHTML;
+
+    console.log(`Ticker updated with ${limerickArticles.length} Limerick articles`);
 }
 
 /* ========================================

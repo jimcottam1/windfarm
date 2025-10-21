@@ -260,6 +260,18 @@ img {
     font-size: 0.95rem;
 }
 
+.filter-badge {
+    background: var(--primary-color);
+    color: var(--white);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    min-width: 20px;
+    text-align: center;
+    margin-left: 0.4rem;
+}
+
 .search-box {
     display: flex;
     gap: 0.5rem;

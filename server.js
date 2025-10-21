@@ -7,6 +7,56 @@ const cron = require('node-cron');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Helper function to check if image URL is likely unwanted
+function isUnwantedImage(imageUrl) {
+    if (!imageUrl) return true;
+    const url = imageUrl.toLowerCase();
+    if (url.startsWith('data:')) return true;
+    const unwantedPatterns = [
+        'logo', 'icon', 'avatar', 'pixel', 'tracking',
+        'button', 'badge', 'banner', 'ad.', 'ads.',
+        'spacer', 'blank', '1x1', 'placeholder',
+        'social', 'share', 'facebook', 'twitter', 'linkedin'
+    ];
+    return unwantedPatterns.some(pattern => url.includes(pattern));
+}
+
+// Helper function to extract og:image from article page
+async function fetchArticleImage(url) {
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 5000
+        });
+        if (!response.ok) return null;
+        const html = await response.text();
+
+        // Look for og:image meta tag
+        const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+                            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i);
+        if (ogImageMatch) return ogImageMatch[1];
+
+        // Fallback to twitter:image
+        const twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+                                 html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["'][^>]*>/i);
+        if (twitterImageMatch) return twitterImageMatch[1];
+
+        // Fallback to first suitable <img> tag
+        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+        let imgMatch;
+        while ((imgMatch = imgRegex.exec(html)) !== null) {
+            const imgUrl = imgMatch[1];
+            if (isUnwantedImage(imgUrl)) continue;
+            return imgUrl;
+        }
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+
 // Enable CORS for all origins
 app.use(cors());
 app.use(express.json());
@@ -195,10 +245,32 @@ async function fetchGoogleNews() {
         });
 
         // Limit to 200 articles
-        cachedArticles = uniqueArticles.slice(0, 200);
+        const limitedArticles = uniqueArticles.slice(0, 200);
+
+        // Fetch real images for articles with placeholder images (limit to first 30)
+        console.log('Fetching featured images from article pages...');
+        const articlesToEnhance = limitedArticles.slice(0, 30);
+        let enhancedCount = 0;
+
+        for (const article of articlesToEnhance) {
+            // Check if using placeholder (Unsplash URL)
+            if (article.image && article.image.includes('unsplash.com')) {
+                const realImage = await fetchArticleImage(article.url);
+                if (realImage) {
+                    article.image = realImage;
+                    enhancedCount++;
+                    realImageCount++;
+                }
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+        }
+
+        cachedArticles = limitedArticles;
         lastFetchTime = new Date();
 
         console.log(`Successfully cached ${cachedArticles.length} articles`);
+        console.log(`Enhanced ${enhancedCount} articles with real images`);
         console.log(`Images: ${realImageCount} real, ${placeholderCount} placeholders`);
     } catch (error) {
         console.error('Error in fetchGoogleNews:', error);

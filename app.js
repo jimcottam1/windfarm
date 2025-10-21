@@ -420,6 +420,55 @@ function updateStats() {
     animateCounter(onshoreCount, stats.onshore);
     animateCounter(planningCount, stats.planning);
     animateCounter(totalArticles, stats.total);
+
+    // Update filter badges
+    updateFilterBadges();
+}
+
+function updateFilterBadges() {
+    // Count articles by province
+    const provinceCounts = {
+        Munster: 0,
+        Leinster: 0,
+        Connacht: 0,
+        Ulster: 0,
+        National: 0
+    };
+
+    // Count articles by type
+    const typeCounts = {
+        offshore: 0,
+        onshore: 0,
+        planning: 0,
+        construction: 0
+    };
+
+    allArticles.forEach(article => {
+        // Count provinces
+        if (provinceCounts[article.province] !== undefined) {
+            provinceCounts[article.province]++;
+        }
+
+        // Count types
+        article.tags.forEach(tag => {
+            if (typeCounts[tag] !== undefined) {
+                typeCounts[tag]++;
+            }
+        });
+    });
+
+    // Update province badges
+    document.getElementById('badgeMunster').textContent = provinceCounts.Munster;
+    document.getElementById('badgeLeinster').textContent = provinceCounts.Leinster;
+    document.getElementById('badgeConnacht').textContent = provinceCounts.Connacht;
+    document.getElementById('badgeUlster').textContent = provinceCounts.Ulster;
+    document.getElementById('badgeNational').textContent = provinceCounts.National;
+
+    // Update type badges
+    document.getElementById('badgeOffshore').textContent = typeCounts.offshore;
+    document.getElementById('badgeOnshore').textContent = typeCounts.onshore;
+    document.getElementById('badgePlanning').textContent = typeCounts.planning;
+    document.getElementById('badgeConstruction').textContent = typeCounts.construction;
 }
 
 function animateCounter(element, target) {

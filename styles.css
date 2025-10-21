@@ -263,41 +263,46 @@ img {
 .search-box {
     display: flex;
     gap: 0.5rem;
-    flex: 1;
-    max-width: 400px;
+    width: 100%;
+    max-width: 350px;
 }
 
 .search-box input {
     flex: 1;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 1rem;
     border: 2px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 0.95rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    background: var(--light-color);
     transition: var(--transition);
 }
 
 .search-box input:focus {
     outline: none;
     border-color: var(--primary-color);
+    background: var(--white);
 }
 
 .search-box button {
-    padding: 0.75rem 1.5rem;
+    padding: 0.6rem 1.2rem;
     background: var(--primary-color);
     color: var(--white);
     border: none;
-    border-radius: 8px;
-    font-weight: 600;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 0.9rem;
     cursor: pointer;
     transition: var(--transition);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
+    white-space: nowrap;
 }
 
 .search-box button:hover {
     background: #1d4ed8;
     transform: translateY(-2px);
+    box-shadow: var(--shadow);
 }
 
 .auto-refresh-info {

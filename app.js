@@ -114,6 +114,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Fix ticker animation on page visibility change
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && tickerContent) {
+            // Force animation restart by re-triggering it
+            tickerContent.style.animation = 'none';
+            setTimeout(() => {
+                tickerContent.style.animation = '';
+            }, 10);
+        }
+    });
+
     // Auto-refresh every 60 minutes with persistent countdown
     function getTimeRemaining() {
         try {

@@ -194,8 +194,8 @@ async function fetchGoogleNews() {
             return new Date(b.date) - new Date(a.date);
         });
 
-        // Limit to 100 articles
-        cachedArticles = uniqueArticles.slice(0, 100);
+        // Limit to 200 articles
+        cachedArticles = uniqueArticles.slice(0, 200);
         lastFetchTime = new Date();
 
         console.log(`Successfully cached ${cachedArticles.length} articles`);

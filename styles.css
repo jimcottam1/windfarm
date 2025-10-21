@@ -146,6 +146,31 @@ img {
     padding-left: 100%;
 }
 
+.ticker-content a {
+    display: inline-block;
+    padding: 0 3rem;
+    font-size: 0.95rem;
+    color: var(--white);
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.ticker-content a:hover {
+    text-decoration: underline;
+    opacity: 0.9;
+}
+
+.ticker-content a::after {
+    content: "•";
+    margin-left: 3rem;
+    opacity: 0.5;
+}
+
+.ticker-content a:last-child::after {
+    content: "";
+}
+
+/* Legacy span support */
 .ticker-content span {
     display: inline-block;
     padding: 0 3rem;

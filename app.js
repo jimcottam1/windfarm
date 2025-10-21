@@ -548,9 +548,9 @@ function updateTicker() {
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 10);
 
-    // Create ticker HTML
+    // Create ticker HTML with links
     const tickerHTML = sortedArticles
-        .map(article => `<span>${article.title} - ${article.source}</span>`)
+        .map(article => `<a href="${article.url}" target="_blank" rel="noopener noreferrer">${article.title} - ${article.source}</a>`)
         .join('');
 
     // Duplicate content for seamless loop

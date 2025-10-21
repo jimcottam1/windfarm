@@ -236,6 +236,7 @@ app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📰 API endpoint: http://localhost:${PORT}/api/articles`);
     console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`🔄 Auto-refresh interval: ${CONFIG.REFRESH_INTERVAL} minutes`);
 
     // Fetch news immediately on startup
     fetchGoogleNews();

@@ -14,7 +14,7 @@ function isUnwantedImage(imageUrl) {
     if (url.startsWith('data:')) return true;
 
     // Filter out Google News images (they're low quality thumbnails)
-    if (url.includes('gstatic.com') || url.includes('ggpht.com')) return true;
+    if (url.includes('gstatic.com') || url.includes('ggpht.com') || url.includes('googleusercontent.com')) return true;
 
     const unwantedPatterns = [
         'logo', 'icon', 'avatar', 'pixel', 'tracking',

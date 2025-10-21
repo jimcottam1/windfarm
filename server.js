@@ -26,38 +26,86 @@ function isUnwantedImage(imageUrl) {
     return unwantedPatterns.some(pattern => url.includes(pattern));
 }
 
-// Helper function to extract og:image from article page
+// Helper function to extract article promo/hero image from article page
 async function fetchArticleImage(url) {
     try {
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Cache-Control': 'no-cache'
             },
-            timeout: 5000
+            timeout: 8000,
+            follow: 5
         });
         if (!response.ok) return null;
         const html = await response.text();
 
-        // Look for og:image meta tag
+        // Priority 1: Look for og:image meta tag (best quality)
         const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
                             html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i);
-        if (ogImageMatch) return ogImageMatch[1];
+        if (ogImageMatch && !isUnwantedImage(ogImageMatch[1])) {
+            console.log(`  ✓ Found og:image for ${url.substring(0, 50)}`);
+            return ogImageMatch[1];
+        }
 
-        // Fallback to twitter:image
+        // Priority 2: Twitter card image
         const twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
                                  html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["'][^>]*>/i);
-        if (twitterImageMatch) return twitterImageMatch[1];
+        if (twitterImageMatch && !isUnwantedImage(twitterImageMatch[1])) {
+            console.log(`  ✓ Found twitter:image for ${url.substring(0, 50)}`);
+            return twitterImageMatch[1];
+        }
 
-        // Fallback to first suitable <img> tag
+        // Priority 3: Look for article/hero/featured images by class/id
+        const heroPatterns = [
+            /<img[^>]*class=["'][^"']*(?:hero|featured|article-image|main-image|lead-image|promo)[^"']*["'][^>]*src=["']([^"']+)["'][^>]*>/i,
+            /<img[^>]*id=["'][^"']*(?:hero|featured|article-image|main-image)[^"']*["'][^>]*src=["']([^"']+)["'][^>]*>/i,
+            /<picture[^>]*>[\s\S]*?<img[^>]*src=["']([^"']+)["'][^>]*>/i
+        ];
+
+        for (const pattern of heroPatterns) {
+            const match = html.match(pattern);
+            if (match && !isUnwantedImage(match[1])) {
+                console.log(`  ✓ Found hero image for ${url.substring(0, 50)}`);
+                return match[1];
+            }
+        }
+
+        // Priority 4: First large image in article content
         const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
         let imgMatch;
+        let candidateImages = [];
+
         while ((imgMatch = imgRegex.exec(html)) !== null) {
             const imgUrl = imgMatch[1];
+            const fullMatch = imgMatch[0];
+
+            // Skip if unwanted
             if (isUnwantedImage(imgUrl)) continue;
-            return imgUrl;
+
+            // Check if image has width/height attributes suggesting it's large enough
+            const widthMatch = fullMatch.match(/width=["']?(\d+)/i);
+            const heightMatch = fullMatch.match(/height=["']?(\d+)/i);
+
+            const width = widthMatch ? parseInt(widthMatch[1]) : 0;
+            const height = heightMatch ? parseInt(heightMatch[1]) : 0;
+
+            // Prefer images that are at least 400px wide or don't specify size
+            if (width === 0 || width >= 400) {
+                candidateImages.push(imgUrl);
+            }
         }
+
+        if (candidateImages.length > 0) {
+            console.log(`  ✓ Found candidate image for ${url.substring(0, 50)}`);
+            return candidateImages[0];
+        }
+
         return null;
     } catch (error) {
+        console.log(`  ✗ Error fetching ${url.substring(0, 50)}: ${error.message}`);
         return null;
     }
 }
@@ -255,15 +303,23 @@ async function fetchGoogleNews() {
 
         // Fetch real images for articles with placeholder images (process first 50)
         console.log('Fetching featured images from article pages...');
+        console.log('This may take 20-30 seconds...');
         const articlesToEnhance = limitedArticles.slice(0, 50);
         let enhancedCount = 0;
+        let attemptedCount = 0;
 
-        // Process articles in batches of 5 for faster parallel fetching
-        for (let i = 0; i < articlesToEnhance.length; i += 5) {
-            const batch = articlesToEnhance.slice(i, i + 5);
+        // Process articles in batches of 3 for better success rate
+        for (let i = 0; i < articlesToEnhance.length; i += 3) {
+            const batch = articlesToEnhance.slice(i, i + 3);
+            const batchNum = Math.floor(i / 3) + 1;
+            const totalBatches = Math.ceil(articlesToEnhance.length / 3);
+
+            console.log(`  Processing batch ${batchNum}/${totalBatches}...`);
+
             const promises = batch.map(async (article) => {
                 // Check if using placeholder (Unsplash URL)
                 if (article.image && article.image.includes('unsplash.com')) {
+                    attemptedCount++;
                     const realImage = await fetchArticleImage(article.url);
                     if (realImage && !isUnwantedImage(realImage)) {
                         article.image = realImage;
@@ -275,12 +331,13 @@ async function fetchGoogleNews() {
             });
 
             await Promise.all(promises);
-            // Small delay between batches to avoid overwhelming servers
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Delay between batches
+            await new Promise(resolve => setTimeout(resolve, 600));
         }
 
         // Update real image count
         realImageCount = limitedArticles.filter(a => !a.image.includes('unsplash.com')).length;
+        console.log(`Successfully enhanced ${enhancedCount}/${attemptedCount} articles with real images`);
 
         cachedArticles = limitedArticles;
         lastFetchTime = new Date();

@@ -12,11 +12,16 @@ function isUnwantedImage(imageUrl) {
     if (!imageUrl) return true;
     const url = imageUrl.toLowerCase();
     if (url.startsWith('data:')) return true;
+
+    // Filter out Google News images (they're low quality thumbnails)
+    if (url.includes('gstatic.com') || url.includes('ggpht.com')) return true;
+
     const unwantedPatterns = [
         'logo', 'icon', 'avatar', 'pixel', 'tracking',
         'button', 'badge', 'banner', 'ad.', 'ads.',
         'spacer', 'blank', '1x1', 'placeholder',
-        'social', 'share', 'facebook', 'twitter', 'linkedin'
+        'social', 'share', 'facebook', 'twitter', 'linkedin',
+        'gravatar', 'emoji', 'gif'
     ];
     return unwantedPatterns.some(pattern => url.includes(pattern));
 }
@@ -194,13 +199,14 @@ async function fetchGoogleNews() {
                         const description = item.description ? item.description[0] : '';
                         const source = item.source && item.source[0]._ ? item.source[0]._ : 'Google News';
 
-                        // Extract image from description or use placeholder
+                        // Extract image from description, but filter out Google images
                         let image = null;
                         const imgMatch = description.match(/<img[^>]+src="([^">]+)"/i);
-                        if (imgMatch) {
+                        if (imgMatch && !isUnwantedImage(imgMatch[1])) {
                             image = imgMatch[1];
                             realImageCount++;
                         } else {
+                            // Use placeholder for now, will try to fetch real image later
                             image = getPlaceholderImage(title, description);
                             placeholderCount++;
                         }
@@ -247,24 +253,34 @@ async function fetchGoogleNews() {
         // Limit to 200 articles
         const limitedArticles = uniqueArticles.slice(0, 200);
 
-        // Fetch real images for articles with placeholder images (limit to first 30)
+        // Fetch real images for articles with placeholder images (process first 50)
         console.log('Fetching featured images from article pages...');
-        const articlesToEnhance = limitedArticles.slice(0, 30);
+        const articlesToEnhance = limitedArticles.slice(0, 50);
         let enhancedCount = 0;
 
-        for (const article of articlesToEnhance) {
-            // Check if using placeholder (Unsplash URL)
-            if (article.image && article.image.includes('unsplash.com')) {
-                const realImage = await fetchArticleImage(article.url);
-                if (realImage) {
-                    article.image = realImage;
-                    enhancedCount++;
-                    realImageCount++;
+        // Process articles in batches of 5 for faster parallel fetching
+        for (let i = 0; i < articlesToEnhance.length; i += 5) {
+            const batch = articlesToEnhance.slice(i, i + 5);
+            const promises = batch.map(async (article) => {
+                // Check if using placeholder (Unsplash URL)
+                if (article.image && article.image.includes('unsplash.com')) {
+                    const realImage = await fetchArticleImage(article.url);
+                    if (realImage && !isUnwantedImage(realImage)) {
+                        article.image = realImage;
+                        enhancedCount++;
+                        return true;
+                    }
                 }
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 200));
-            }
+                return false;
+            });
+
+            await Promise.all(promises);
+            // Small delay between batches to avoid overwhelming servers
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
+
+        // Update real image count
+        realImageCount = limitedArticles.filter(a => !a.image.includes('unsplash.com')).length;
 
         cachedArticles = limitedArticles;
         lastFetchTime = new Date();

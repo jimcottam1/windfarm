@@ -114,15 +114,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Fix ticker animation on page visibility change
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden && tickerContent) {
+    // Fix ticker animation on page visibility change and focus
+    function restartTickerAnimation() {
+        if (tickerContent) {
             // Force animation restart by re-triggering it
             tickerContent.style.animation = 'none';
             setTimeout(() => {
                 tickerContent.style.animation = '';
             }, 10);
         }
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            restartTickerAnimation();
+        }
+    });
+
+    // Also restart when window regains focus (for new tab scenarios)
+    window.addEventListener('focus', function() {
+        restartTickerAnimation();
     });
 
     // Auto-refresh every 60 minutes with persistent countdown

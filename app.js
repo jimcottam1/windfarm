@@ -16,6 +16,11 @@ let allArticles = [];
 let filteredArticles = [];
 let currentView = 'list';
 
+// Pagination state
+const ARTICLES_PER_PAGE = 30;
+let currentPage = 1;
+let displayedArticles = [];
+
 // DOM Elements
 const newsGrid = document.getElementById('newsGrid');
 const loadingState = document.getElementById('loadingState');
@@ -29,6 +34,11 @@ const filterToggle = document.getElementById('filterToggle');
 const filterContent = document.getElementById('filterContent');
 const activeFilterCount = document.getElementById('activeFilterCount');
 const backToTopBtn = document.getElementById('backToTop');
+const loadMoreContainer = document.getElementById('loadMoreContainer');
+const loadMoreBtn = document.getElementById('loadMoreBtn');
+const loadMoreText = document.getElementById('loadMoreText');
+const articlesShown = document.getElementById('articlesShown');
+const articlesTotal = document.getElementById('articlesTotal');
 
 // Province filter checkboxes
 const filterMunster = document.getElementById('filterMunster');
@@ -166,6 +176,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 behavior: 'smooth'
             });
         });
+    }
+
+    // Load more button functionality
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', loadMoreArticles);
     }
 
     // Auto-refresh every 60 minutes with persistent countdown
@@ -387,22 +402,69 @@ function updateActiveFilterCount() {
    DISPLAY ARTICLES
    ======================================== */
 
-function displayArticles() {
-    newsGrid.innerHTML = '';
+function displayArticles(resetPagination = true) {
+    if (resetPagination) {
+        currentPage = 1;
+        displayedArticles = [];
+        newsGrid.innerHTML = '';
+    }
 
     if (filteredArticles.length === 0) {
         showEmptyState(true);
+        hideLoadMoreButton();
         return;
     }
 
     showEmptyState(false);
 
-    filteredArticles.forEach(article => {
+    // Calculate which articles to display
+    const startIndex = displayedArticles.length;
+    const endIndex = Math.min(startIndex + ARTICLES_PER_PAGE, filteredArticles.length);
+    const articlesToShow = filteredArticles.slice(startIndex, endIndex);
+
+    // Add new articles to displayed list
+    displayedArticles.push(...articlesToShow);
+
+    // Render new articles
+    articlesToShow.forEach(article => {
         const card = createNewsCard(article);
         newsGrid.appendChild(card);
     });
 
+    // Update load more button
+    updateLoadMoreButton();
     updateStats();
+}
+
+function loadMoreArticles() {
+    currentPage++;
+    displayArticles(false);
+}
+
+function updateLoadMoreButton() {
+    if (!loadMoreContainer) return;
+
+    const remaining = filteredArticles.length - displayedArticles.length;
+
+    if (remaining > 0) {
+        loadMoreContainer.style.display = 'block';
+
+        // Update button text
+        const articlesToLoad = Math.min(ARTICLES_PER_PAGE, remaining);
+        loadMoreText.textContent = `Load ${articlesToLoad} More Article${articlesToLoad !== 1 ? 's' : ''}`;
+
+        // Update counter
+        articlesShown.textContent = displayedArticles.length;
+        articlesTotal.textContent = filteredArticles.length;
+    } else {
+        loadMoreContainer.style.display = 'none';
+    }
+}
+
+function hideLoadMoreButton() {
+    if (loadMoreContainer) {
+        loadMoreContainer.style.display = 'none';
+    }
 }
 
 function createNewsCard(article) {

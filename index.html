@@ -228,6 +228,19 @@
                 <!-- News items will be inserted here by JavaScript -->
             </div>
 
+            <!-- Load More Button -->
+            <div id="loadMoreContainer" class="load-more-container" style="display: none;">
+                <button id="loadMoreBtn" class="load-more-btn">
+                    <span id="loadMoreText">Load 30 More Articles</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <p class="load-more-info">
+                    Showing <span id="articlesShown">30</span> of <span id="articlesTotal">0</span> articles
+                </p>
+            </div>
+
             <!-- Empty State -->
             <div id="emptyState" class="empty-state" style="display: none;">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -760,6 +760,58 @@ img {
 }
 
 /* ========================================
+   LOAD MORE
+   ======================================== */
+
+.load-more-container {
+    text-align: center;
+    padding: 2rem 0;
+    margin-top: 2rem;
+}
+
+.load-more-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.load-more-btn:hover {
+    background: #0d9488;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.load-more-btn:active {
+    transform: translateY(0);
+}
+
+.load-more-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.load-more-info {
+    margin-top: 1rem;
+    color: var(--text-light);
+    font-size: 0.95rem;
+}
+
+.load-more-info span {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* ========================================
    SOURCES
    ======================================== */
 
@@ -1118,6 +1170,22 @@ img {
     }
 
     .news-card-link {
+        font-size: 0.85rem;
+    }
+
+    /* Load more button on mobile */
+    .load-more-container {
+        padding: 1.5rem 0;
+        margin-top: 1rem;
+    }
+
+    .load-more-btn {
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+        font-size: 0.95rem;
+    }
+
+    .load-more-info {
         font-size: 0.85rem;
     }
 

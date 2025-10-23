@@ -141,9 +141,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (tickerContent) {
             // Force animation restart by re-triggering it
             tickerContent.style.animation = 'none';
+            // Force reflow to ensure animation stops
+            void tickerContent.offsetWidth;
+            // Use longer delay for mobile browsers
             setTimeout(() => {
                 tickerContent.style.animation = '';
-            }, 10);
+            }, 50);
         }
     }
 
@@ -162,7 +165,17 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('pageshow', function(event) {
         // If page is loaded from bfcache, restart animation
         if (event.persisted) {
-            restartTickerAnimation();
+            // Immediate restart for bfcache
+            setTimeout(() => {
+                restartTickerAnimation();
+            }, 100);
+        }
+    });
+
+    // Additional pagehide listener to ensure clean state
+    window.addEventListener('pagehide', function() {
+        if (tickerContent) {
+            tickerContent.style.animation = 'none';
         }
     });
 

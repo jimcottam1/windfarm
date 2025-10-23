@@ -28,6 +28,7 @@ const tickerContent = document.getElementById('tickerContent');
 const filterToggle = document.getElementById('filterToggle');
 const filterContent = document.getElementById('filterContent');
 const activeFilterCount = document.getElementById('activeFilterCount');
+const backToTopBtn = document.getElementById('backToTop');
 
 // Province filter checkboxes
 const filterMunster = document.getElementById('filterMunster');
@@ -146,6 +147,26 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('focus', function() {
         restartTickerAnimation();
     });
+
+    // Back to top button functionality
+    if (backToTopBtn) {
+        // Show/hide button based on scroll position
+        window.addEventListener('scroll', function() {
+            if (window.pageYOffset > 300) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        });
+
+        // Scroll to top when clicked
+        backToTopBtn.addEventListener('click', function() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+    }
 
     // Auto-refresh every 60 minutes with persistent countdown
     function getTimeRemaining() {
@@ -400,7 +421,7 @@ function createNewsCard(article) {
     card.innerHTML = `
         <div class="news-card-image">
             ${article.image ?
-                `<img src="${article.image}" alt="${article.title}" style="width: 100%; height: 100%; object-fit: cover;">` :
+                `<img loading="lazy" src="${article.image}" alt="${article.title}" style="width: 100%; height: 100%; object-fit: cover;">` :
                 `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
                 </svg>`

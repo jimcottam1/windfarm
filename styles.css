@@ -820,6 +820,49 @@ img {
 }
 
 /* ========================================
+   BACK TO TOP BUTTON
+   ======================================== */
+
+.back-to-top {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 50px;
+    height: 50px;
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.back-to-top:hover {
+    background: #0d9488;
+    transform: translateY(-5px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.back-to-top svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* ========================================
    RESPONSIVE DESIGN
    ======================================== */
 
@@ -980,6 +1023,19 @@ img {
         width: 100%;
         font-size: 0.85rem;
         padding: 0.6rem 0.9rem;
+    }
+
+    /* Back to top button on mobile */
+    .back-to-top {
+        bottom: 1rem;
+        right: 1rem;
+        width: 45px;
+        height: 45px;
+    }
+
+    .back-to-top svg {
+        width: 20px;
+        height: 20px;
     }
 
     /* Give more space to news feed */

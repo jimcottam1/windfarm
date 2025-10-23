@@ -47,6 +47,17 @@
     <!-- Filters -->
     <section class="filters">
         <div class="container">
+            <button class="filter-toggle" id="filterToggle">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+                </svg>
+                <span>Filters</span>
+                <span class="active-filter-count" id="activeFilterCount">(9)</span>
+                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
+            <div class="filter-content" id="filterContent">
             <div class="filter-section">
                 <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">Filter by Province:</h4>
                 <div class="filter-group">
@@ -120,6 +131,7 @@
                     <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
                 </svg>
                 <span id="autoRefreshStatus">Auto-refresh: Every 15 minutes</span>
+            </div>
             </div>
         </div>
     </section>

@@ -25,6 +25,9 @@ const searchBtn = document.getElementById('searchBtn');
 const lastUpdated = document.getElementById('lastUpdated');
 const autoRefreshStatus = document.getElementById('autoRefreshStatus');
 const tickerContent = document.getElementById('tickerContent');
+const filterToggle = document.getElementById('filterToggle');
+const filterContent = document.getElementById('filterContent');
+const activeFilterCount = document.getElementById('activeFilterCount');
 
 // Province filter checkboxes
 const filterMunster = document.getElementById('filterMunster');
@@ -93,18 +96,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') performSearch();
     });
 
+    // Filter toggle for mobile
+    if (filterToggle) {
+        filterToggle.addEventListener('click', function() {
+            filterToggle.classList.toggle('open');
+            filterContent.classList.toggle('open');
+        });
+    }
+
     // Province filter listeners
-    filterMunster.addEventListener('change', applyFilters);
-    filterLeinster.addEventListener('change', applyFilters);
-    filterConnacht.addEventListener('change', applyFilters);
-    filterUlster.addEventListener('change', applyFilters);
-    filterNational.addEventListener('change', applyFilters);
+    filterMunster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterLeinster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterConnacht.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterUlster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterNational.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
 
     // Type filter listeners
-    filterOffshore.addEventListener('change', applyFilters);
-    filterOnshore.addEventListener('change', applyFilters);
-    filterPlanning.addEventListener('change', applyFilters);
-    filterConstruction.addEventListener('change', applyFilters);
+    filterOffshore.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterOnshore.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterPlanning.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterConstruction.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
 
     // View toggle
     viewButtons.forEach(btn => {
@@ -328,6 +339,27 @@ function applyFilters() {
 
 function performSearch() {
     applyFilters();
+}
+
+function updateActiveFilterCount() {
+    let count = 0;
+
+    // Count active province filters
+    if (filterMunster.checked) count++;
+    if (filterLeinster.checked) count++;
+    if (filterConnacht.checked) count++;
+    if (filterUlster.checked) count++;
+    if (filterNational.checked) count++;
+
+    // Count active type filters
+    if (filterOffshore.checked) count++;
+    if (filterOnshore.checked) count++;
+    if (filterPlanning.checked) count++;
+    if (filterConstruction.checked) count++;
+
+    if (activeFilterCount) {
+        activeFilterCount.textContent = `(${count})`;
+    }
 }
 
 /* ========================================

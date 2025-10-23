@@ -1003,37 +1003,6 @@ img {
         margin-top: 0.25rem;
     }
 
-    /* Compact news ticker on mobile */
-    .news-ticker-wrapper {
-        padding: 0.4rem 0;
-    }
-
-    .ticker-label {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.75rem;
-        gap: 0.3rem;
-    }
-
-    .ticker-icon {
-        width: 14px;
-        height: 14px;
-    }
-
-    .news-ticker {
-        padding: 0.5rem 0;
-    }
-
-    .ticker-content a,
-    .ticker-content span {
-        font-size: 0.8rem;
-        padding: 0 2rem;
-    }
-
-    .ticker-content a::after,
-    .ticker-content span::after {
-        margin-left: 2rem;
-    }
-
     /* Hide stats section on mobile to save space */
     .stats {
         display: none;

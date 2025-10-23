@@ -158,6 +158,14 @@ document.addEventListener('DOMContentLoaded', function() {
         restartTickerAnimation();
     });
 
+    // Handle back/forward cache (bfcache) on mobile browsers
+    window.addEventListener('pageshow', function(event) {
+        // If page is loaded from bfcache, restart animation
+        if (event.persisted) {
+            restartTickerAnimation();
+        }
+    });
+
     // Back to top button functionality
     if (backToTopBtn) {
         // Show/hide button based on scroll position

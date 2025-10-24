@@ -562,7 +562,23 @@ function updateStats() {
 }
 
 function updateFilterBadges() {
-    // Count articles by province
+    // Get currently selected filters
+    const provinceFilters = {
+        Munster: document.getElementById('filterMunster').checked,
+        Leinster: document.getElementById('filterLeinster').checked,
+        Connacht: document.getElementById('filterConnacht').checked,
+        Ulster: document.getElementById('filterUlster').checked,
+        National: document.getElementById('filterNational').checked
+    };
+
+    const typeFilters = {
+        offshore: document.getElementById('filterOffshore').checked,
+        onshore: document.getElementById('filterOnshore').checked,
+        planning: document.getElementById('filterPlanning').checked,
+        construction: document.getElementById('filterConstruction').checked
+    };
+
+    // Count articles by province (considering active type filters)
     const provinceCounts = {
         Munster: 0,
         Leinster: 0,
@@ -571,7 +587,7 @@ function updateFilterBadges() {
         National: 0
     };
 
-    // Count articles by type
+    // Count articles by type (considering active province filters)
     const typeCounts = {
         offshore: 0,
         onshore: 0,
@@ -580,17 +596,21 @@ function updateFilterBadges() {
     };
 
     allArticles.forEach(article => {
-        // Count provinces
-        if (provinceCounts[article.province] !== undefined) {
+        // Count provinces (only if article matches active type filters)
+        const matchesTypeFilter = article.tags.some(tag => typeFilters[tag]);
+        if (matchesTypeFilter && provinceCounts[article.province] !== undefined) {
             provinceCounts[article.province]++;
         }
 
-        // Count types
-        article.tags.forEach(tag => {
-            if (typeCounts[tag] !== undefined) {
-                typeCounts[tag]++;
-            }
-        });
+        // Count types (only if article matches active province filters)
+        const matchesProvinceFilter = provinceFilters[article.province];
+        if (matchesProvinceFilter) {
+            article.tags.forEach(tag => {
+                if (typeCounts[tag] !== undefined) {
+                    typeCounts[tag]++;
+                }
+            });
+        }
     });
 
     // Update province badges

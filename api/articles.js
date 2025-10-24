@@ -80,9 +80,31 @@ const CONFIG = {
         'https://news.google.com/rss/search?q=wind+energy+ireland&hl=en-IE&gl=IE&ceid=IE:en',
         'https://news.google.com/rss/search?q=offshore+wind+ireland&hl=en-IE&gl=IE&ceid=IE:en',
         'https://news.google.com/rss/search?q=onshore+wind+ireland&hl=en-IE&gl=IE&ceid=IE:en',
-        'https://news.google.com/rss/search?q=renewable+energy+ireland&hl=en-IE&gl=IE&ceid=IE:en'
+        'https://news.google.com/rss/search?q=renewable+energy+ireland&hl=en-IE&gl=IE&ceid=IE:en',
+        // Local Limerick news sources
+        'https://www.limerickpost.ie/feed/',
+        // Limerick Leader sections
+        'https://www.limerickleader.ie/rss.jsp?sezione=131', // Local news
+        'https://www.limerickleader.ie/rss.jsp?sezione=308', // Sport
+        'https://www.limerickleader.ie/rss.jsp?sezione=233', // Business
+        'https://www.limerickleader.ie/rss.jsp?sezione=297', // Lifestyle
+        'https://www.limerickleader.ie/rss.jsp?sezione=86'   // Opinion
+    ],
+    // Keywords to filter local news articles (same as Google News searches)
+    FILTER_KEYWORDS: [
+        'wind farm', 'wind energy', 'offshore wind', 'onshore wind',
+        'renewable energy', 'wind power', 'wind turbine', 'windfarm',
+        'solar energy', 'solar power', 'solar farm',
+        'renewable power', 'green energy', 'clean energy',
+        'energy project', 'power generation'
     ]
 };
+
+// Check if article matches energy-related keywords
+function matchesEnergyKeywords(text) {
+    const lowerText = text.toLowerCase();
+    return CONFIG.FILTER_KEYWORDS.some(keyword => lowerText.includes(keyword));
+}
 
 // Province detection
 function categorizeProvince(text) {
@@ -184,12 +206,41 @@ async function fetchGoogleNews() {
                     const items = result.rss.channel[0].item;
                     console.log(`Found ${items.length} items from feed`);
 
+                    // Get channel title for use as fallback source
+                    const channelTitle = result.rss.channel[0].title && result.rss.channel[0].title[0]
+                        ? result.rss.channel[0].title[0]
+                        : null;
+
+                    // Determine default source based on URL
+                    let defaultSource = 'Google News';
+                    let isLocalSource = false;
+                    if (rssUrl.includes('limerickpost.ie')) {
+                        defaultSource = 'Limerick Post';
+                        isLocalSource = true;
+                    } else if (rssUrl.includes('limerickleader.ie')) {
+                        defaultSource = 'Limerick Leader';
+                        isLocalSource = true;
+                    } else if (channelTitle) {
+                        defaultSource = channelTitle;
+                    }
+
                     for (const item of items) {
                         const title = item.title ? item.title[0] : '';
                         const link = item.link ? item.link[0] : '#';
                         const pubDate = item.pubDate ? item.pubDate[0] : new Date().toISOString();
                         const description = item.description ? item.description[0] : '';
-                        const source = item.source && item.source[0]._ ? item.source[0]._ : 'Google News';
+                        const source = item.source && item.source[0]._ ? item.source[0]._ : defaultSource;
+
+                        // Filter local news sources by energy keywords
+                        // Google News articles are already filtered by their search queries
+                        if (isLocalSource) {
+                            const articleText = title + ' ' + stripHTML(description);
+                            if (!matchesEnergyKeywords(articleText)) {
+                                continue; // Skip articles that don't match energy keywords
+                            }
+                            // Log when Limerick article matches energy keywords
+                            console.log(`✓ LIMERICK MATCH: [${defaultSource}] ${title.substring(0, 80)}...`);
+                        }
 
                         // Extract image from description or use placeholder
                         let image = null;

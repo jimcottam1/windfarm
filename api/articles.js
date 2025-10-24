@@ -1,5 +1,29 @@
 const fetch = require('node-fetch');
 const xml2js = require('xml2js');
+const { execSync } = require('child_process');
+const { version } = require('../package.json');
+
+// Get git commit info for build tracking
+function getGitInfo() {
+    try {
+        const commitHash = execSync('git rev-parse HEAD').toString().trim();
+        const commitShort = execSync('git rev-parse --short HEAD').toString().trim();
+        const commitDate = execSync('git log -1 --format=%cI').toString().trim();
+        const commitMessage = execSync('git log -1 --format=%s').toString().trim();
+        const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+
+        return {
+            commit: commitShort,
+            commitFull: commitHash,
+            commitDate: commitDate,
+            commitMessage: commitMessage,
+            branch: branch
+        };
+    } catch (error) {
+        // If git is not available or not a git repo, return null
+        return null;
+    }
+}
 
 // Helper function to check if image URL is likely unwanted
 function isUnwantedImage(imageUrl) {
@@ -344,12 +368,21 @@ module.exports = async (req, res) => {
     try {
         const articles = await fetchGoogleNews();
         const now = new Date();
+        const gitInfo = getGitInfo();
 
-        res.status(200).json({
+        const response = {
             articles: articles,
             lastUpdate: now.toISOString(),
-            count: articles.length
-        });
+            count: articles.length,
+            version: {
+                version: version,
+                feeds: 13,
+                maxArticles: 400,
+                ...(gitInfo && { git: gitInfo })
+            }
+        };
+
+        res.status(200).json(response);
     } catch (error) {
         console.error('Error in serverless function:', error);
         res.status(500).json({

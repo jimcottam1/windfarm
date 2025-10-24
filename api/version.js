@@ -1,24 +1,16 @@
-const { execSync } = require('child_process');
 const { version } = require('../package.json');
+const fs = require('fs');
+const path = require('path');
 
-// Get git commit info for build tracking
-function getGitInfo() {
+// Get build info from pre-generated file
+function getBuildInfo() {
     try {
-        const commitHash = execSync('git rev-parse HEAD').toString().trim();
-        const commitShort = execSync('git rev-parse --short HEAD').toString().trim();
-        const commitDate = execSync('git log -1 --format=%cI').toString().trim();
-        const commitMessage = execSync('git log -1 --format=%s').toString().trim();
-        const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
-
-        return {
-            commit: commitShort,
-            commitFull: commitHash,
-            commitDate: commitDate,
-            commitMessage: commitMessage,
-            branch: branch
-        };
+        const buildInfoPath = path.join(__dirname, '..', 'build-info.json');
+        const buildInfoContent = fs.readFileSync(buildInfoPath, 'utf8');
+        return JSON.parse(buildInfoContent);
     } catch (error) {
-        // If git is not available or not a git repo, return null
+        // If build-info.json doesn't exist, return null
+        console.error('build-info.json not found:', error.message);
         return null;
     }
 }
@@ -36,14 +28,14 @@ module.exports = async (req, res) => {
         return;
     }
 
-    const gitInfo = getGitInfo();
+    const buildInfo = getBuildInfo();
 
     const versionInfo = {
         version: version,
         serverStarted: new Date().toISOString(),
         feeds: 13,
         maxArticles: 400,
-        ...(gitInfo && { git: gitInfo })
+        ...(buildInfo && { build: buildInfo })
     };
 
     res.status(200).json(versionInfo);

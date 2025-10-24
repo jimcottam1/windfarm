@@ -1,26 +1,18 @@
 const fetch = require('node-fetch');
 const xml2js = require('xml2js');
-const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 const { version } = require('../package.json');
 
-// Get git commit info for build tracking
-function getGitInfo() {
+// Get build info from pre-generated file
+function getBuildInfo() {
     try {
-        const commitHash = execSync('git rev-parse HEAD').toString().trim();
-        const commitShort = execSync('git rev-parse --short HEAD').toString().trim();
-        const commitDate = execSync('git log -1 --format=%cI').toString().trim();
-        const commitMessage = execSync('git log -1 --format=%s').toString().trim();
-        const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
-
-        return {
-            commit: commitShort,
-            commitFull: commitHash,
-            commitDate: commitDate,
-            commitMessage: commitMessage,
-            branch: branch
-        };
+        const buildInfoPath = path.join(__dirname, '..', 'build-info.json');
+        const buildInfoContent = fs.readFileSync(buildInfoPath, 'utf8');
+        return JSON.parse(buildInfoContent);
     } catch (error) {
-        // If git is not available or not a git repo, return null
+        // If build-info.json doesn't exist, return null
+        console.error('build-info.json not found:', error.message);
         return null;
     }
 }
@@ -368,7 +360,7 @@ module.exports = async (req, res) => {
     try {
         const articles = await fetchGoogleNews();
         const now = new Date();
-        const gitInfo = getGitInfo();
+        const buildInfo = getBuildInfo();
 
         const response = {
             articles: articles,
@@ -378,7 +370,7 @@ module.exports = async (req, res) => {
                 version: version,
                 feeds: 13,
                 maxArticles: 400,
-                ...(gitInfo && { git: gitInfo })
+                ...(buildInfo && { build: buildInfo })
             }
         };
 

@@ -1,0 +1,8 @@
+{
+  "commit": "5933a7c",
+  "commitFull": "5933a7c2c48de5c8bc49d64e9cff85a7610fc7b9",
+  "commitDate": "2025-10-24T17:12:10+01:00",
+  "commitMessage": "Add dedicated /api/version endpoint for easy version checking",
+  "branch": "main",
+  "buildDate": "2025-10-24T19:03:34.715Z"
+}

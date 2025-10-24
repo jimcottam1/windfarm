@@ -298,8 +298,8 @@ async function fetchGoogleNews() {
             return new Date(b.date) - new Date(a.date);
         });
 
-        // Limit to 200 articles
-        const limitedArticles = uniqueArticles.slice(0, 200);
+        // Limit to 300 articles
+        const limitedArticles = uniqueArticles.slice(0, 300);
 
         // Fetch real images for articles with placeholder images (process first 50)
         console.log('Fetching featured images from article pages...');

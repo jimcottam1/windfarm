@@ -88,7 +88,10 @@ const CONFIG = {
         'https://www.limerickleader.ie/rss.jsp?sezione=308', // Sport
         'https://www.limerickleader.ie/rss.jsp?sezione=233', // Business
         'https://www.limerickleader.ie/rss.jsp?sezione=297', // Lifestyle
-        'https://www.limerickleader.ie/rss.jsp?sezione=86'   // Opinion
+        'https://www.limerickleader.ie/rss.jsp?sezione=86',  // Opinion
+        // Regional Irish news sources
+        'https://www.clareecho.ie/feed/',                    // Clare Echo
+        'https://www.corkbeo.ie/?service=rss'                // Cork Beo
     ],
     // Keywords to filter local news articles (same as Google News searches)
     FILTER_KEYWORDS: [
@@ -220,6 +223,12 @@ async function fetchGoogleNews() {
                     } else if (rssUrl.includes('limerickleader.ie')) {
                         defaultSource = 'Limerick Leader';
                         isLocalSource = true;
+                    } else if (rssUrl.includes('clareecho.ie')) {
+                        defaultSource = 'Clare Echo';
+                        isLocalSource = true;
+                    } else if (rssUrl.includes('corkbeo.ie')) {
+                        defaultSource = 'Cork Beo';
+                        isLocalSource = true;
                     } else if (channelTitle) {
                         defaultSource = channelTitle;
                     }
@@ -290,8 +299,8 @@ async function fetchGoogleNews() {
             return new Date(b.date) - new Date(a.date);
         });
 
-        // Limit to 200 articles
-        const limitedArticles = uniqueArticles.slice(0, 200);
+        // Limit to 300 articles
+        const limitedArticles = uniqueArticles.slice(0, 300);
 
         // Fetch real images for articles with placeholder images (limit to first 30 to avoid timeout)
         console.log('Fetching featured images from article pages...');

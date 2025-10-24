@@ -517,7 +517,7 @@ function createNewsCard(article) {
                 <div class="news-card-date">${timeAgo}</div>
             </div>
             <h3>${article.title}</h3>
-            <p class="news-card-description">${article.aiSummary || article.description || 'No description available.'}</p>
+            <p class="news-card-description">${article.description || 'No description available.'}</p>
             <div class="news-card-footer">
                 <span class="news-card-source">${article.source}</span>
                 <a href="${article.url}" target="_blank" class="news-card-link">

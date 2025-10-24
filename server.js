@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
@@ -52,7 +50,7 @@ let geminiModel = null;
 if (process.env.GEMINI_API_KEY) {
     try {
         genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         console.log('✓ Gemini AI initialized');
     } catch (error) {
         console.log('✗ Gemini AI initialization failed:', error.message);
@@ -155,13 +153,10 @@ async function fetchArticleData(url, title) {
             timeout: 8000,
             follow: 5
         });
-
-        // Get HTML even if response is not OK (e.g., 404 pages still return HTML)
+        if (!response.ok) return { image: null, summary: null };
         const html = await response.text();
-        let image = null;
 
-        // Only try to extract images if response was OK
-        const tryImageExtraction = response.ok;
+        let image = null;
 
         // Priority 1: Look for og:image meta tag (best quality)
         const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||

@@ -3,17 +3,44 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const xml2js = require('xml2js');
 const cron = require('node-cron');
+const { execSync } = require('child_process');
 const { version } = require('./package.json');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Get git commit info for build tracking
+function getGitInfo() {
+    try {
+        const commitHash = execSync('git rev-parse HEAD').toString().trim();
+        const commitShort = execSync('git rev-parse --short HEAD').toString().trim();
+        const commitDate = execSync('git log -1 --format=%cI').toString().trim();
+        const commitMessage = execSync('git log -1 --format=%s').toString().trim();
+        const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+
+        return {
+            commit: commitShort,
+            commitFull: commitHash,
+            commitDate: commitDate,
+            commitMessage: commitMessage,
+            branch: branch
+        };
+    } catch (error) {
+        // If git is not available or not a git repo, return null
+        return null;
+    }
+}
+
 // Build info
+const gitInfo = getGitInfo();
 const BUILD_INFO = {
     version: version,
-    buildDate: new Date().toISOString(),
+    serverStarted: new Date().toISOString(),
     feeds: 13,
-    maxArticles: 400
+    maxArticles: 400,
+    ...(gitInfo && {
+        git: gitInfo
+    })
 };
 
 // Helper function to check if image URL is likely unwanted
@@ -394,6 +421,9 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
     console.log(`📦 Version: ${BUILD_INFO.version} (${BUILD_INFO.feeds} feeds, max ${BUILD_INFO.maxArticles} articles)`);
+    if (BUILD_INFO.git) {
+        console.log(`🔧 Build: ${BUILD_INFO.git.commit} on ${BUILD_INFO.git.branch} - ${BUILD_INFO.git.commitMessage}`);
+    }
     console.log(`📰 API endpoint: http://localhost:${PORT}/api/articles`);
     console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
     console.log(`ℹ️  Version info: http://localhost:${PORT}/api/version`);

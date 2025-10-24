@@ -3,9 +3,18 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const xml2js = require('xml2js');
 const cron = require('node-cron');
+const { version } = require('./package.json');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Build info
+const BUILD_INFO = {
+    version: version,
+    buildDate: new Date().toISOString(),
+    feeds: 13,
+    maxArticles: 400
+};
 
 // Helper function to check if image URL is likely unwanted
 function isUnwantedImage(imageUrl) {
@@ -371,6 +380,11 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Version endpoint
+app.get('/api/version', (req, res) => {
+    res.json(BUILD_INFO);
+});
+
 // Serve index.html for root
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
@@ -379,8 +393,10 @@ app.get('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📦 Version: ${BUILD_INFO.version} (${BUILD_INFO.feeds} feeds, max ${BUILD_INFO.maxArticles} articles)`);
     console.log(`📰 API endpoint: http://localhost:${PORT}/api/articles`);
     console.log(`💚 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`ℹ️  Version info: http://localhost:${PORT}/api/version`);
     console.log(`🔄 Auto-refresh interval: ${CONFIG.REFRESH_INTERVAL} minutes`);
 
     // Fetch news immediately on startup

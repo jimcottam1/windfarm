@@ -5,6 +5,7 @@ const xml2js = require('xml2js');
 const cron = require('node-cron');
 const { execSync } = require('child_process');
 const { version } = require('./package.json');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,83 @@ const BUILD_INFO = {
     })
 };
 
+// Initialize Gemini AI (optional - only if API key is provided)
+let genAI = null;
+let geminiModel = null;
+if (process.env.GEMINI_API_KEY) {
+    try {
+        genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        console.log('✓ Gemini AI initialized');
+    } catch (error) {
+        console.log('✗ Gemini AI initialization failed:', error.message);
+    }
+} else {
+    console.log('ℹ Gemini API key not provided - AI summarization disabled');
+}
+
+// Extract article text from HTML
+function extractArticleText(html) {
+    try {
+        // Remove script and style tags
+        let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+        text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+        // Try to find article content (common patterns)
+        const articlePatterns = [
+            /<article[^>]*>([\s\S]*?)<\/article>/i,
+            /<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+            /<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+            /<main[^>]*>([\s\S]*?)<\/main>/i
+        ];
+
+        for (const pattern of articlePatterns) {
+            const match = text.match(pattern);
+            if (match) {
+                text = match[1];
+                break;
+            }
+        }
+
+        // Remove all HTML tags
+        text = text.replace(/<[^>]+>/g, ' ');
+
+        // Clean up whitespace
+        text = text.replace(/\s+/g, ' ').trim();
+
+        // Limit to first 3000 characters to stay within API limits
+        return text.substring(0, 3000);
+    } catch (error) {
+        return '';
+    }
+}
+
+// Summarize article using Gemini
+async function summarizeArticle(title, articleText) {
+    if (!geminiModel || !articleText || articleText.length < 100) {
+        return null;
+    }
+
+    try {
+        const prompt = `Summarize this Irish wind energy news article in 2-3 clear, informative sentences. Focus on the key facts like location, project size, companies involved, and current status.
+
+Title: ${title}
+
+Article: ${articleText}
+
+Summary:`;
+
+        const result = await geminiModel.generateContent(prompt);
+        const response = await result.response;
+        const summary = response.text().trim();
+
+        return summary;
+    } catch (error) {
+        console.log(`  ✗ Gemini summarization failed: ${error.message}`);
+        return null;
+    }
+}
+
 // Helper function to check if image URL is likely unwanted
 function isUnwantedImage(imageUrl) {
     if (!imageUrl) return true;
@@ -62,8 +140,8 @@ function isUnwantedImage(imageUrl) {
     return unwantedPatterns.some(pattern => url.includes(pattern));
 }
 
-// Helper function to extract article promo/hero image from article page
-async function fetchArticleImage(url) {
+// Helper function to extract article promo/hero image and content from article page
+async function fetchArticleData(url, title) {
     try {
         const response = await fetch(url, {
             headers: {
@@ -75,74 +153,95 @@ async function fetchArticleImage(url) {
             timeout: 8000,
             follow: 5
         });
-        if (!response.ok) return null;
+        if (!response.ok) return { image: null, summary: null };
         const html = await response.text();
+
+        let image = null;
 
         // Priority 1: Look for og:image meta tag (best quality)
         const ogImageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
                             html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i);
         if (ogImageMatch && !isUnwantedImage(ogImageMatch[1])) {
             console.log(`  ✓ Found og:image for ${url.substring(0, 50)}`);
-            return ogImageMatch[1];
+            image = ogImageMatch[1];
         }
 
         // Priority 2: Twitter card image
-        const twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
-                                 html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["'][^>]*>/i);
-        if (twitterImageMatch && !isUnwantedImage(twitterImageMatch[1])) {
-            console.log(`  ✓ Found twitter:image for ${url.substring(0, 50)}`);
-            return twitterImageMatch[1];
+        if (!image) {
+            const twitterImageMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["'][^>]*>/i) ||
+                                     html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["'][^>]*>/i);
+            if (twitterImageMatch && !isUnwantedImage(twitterImageMatch[1])) {
+                console.log(`  ✓ Found twitter:image for ${url.substring(0, 50)}`);
+                image = twitterImageMatch[1];
+            }
         }
 
         // Priority 3: Look for article/hero/featured images by class/id
-        const heroPatterns = [
-            /<img[^>]*class=["'][^"']*(?:hero|featured|article-image|main-image|lead-image|promo)[^"']*["'][^>]*src=["']([^"']+)["'][^>]*>/i,
-            /<img[^>]*id=["'][^"']*(?:hero|featured|article-image|main-image)[^"']*["'][^>]*src=["']([^"']+)["'][^>]*>/i,
-            /<picture[^>]*>[\s\S]*?<img[^>]*src=["']([^"']+)["'][^>]*>/i
-        ];
+        if (!image) {
+            const heroPatterns = [
+                /<img[^>]*class=["'][^"']*(?:hero|featured|article-image|main-image|lead-image|promo)[^"']*["'][^>]*src=["']([^"']+)["'][^>]*>/i,
+                /<img[^>]*id=["'][^"']*(?:hero|featured|article-image|main-image)[^"']*["'][^>]*src=["']([^"']+)["'][^>]*>/i,
+                /<picture[^>]*>[\s\S]*?<img[^>]*src=["']([^"']+)["'][^>]*>/i
+            ];
 
-        for (const pattern of heroPatterns) {
-            const match = html.match(pattern);
-            if (match && !isUnwantedImage(match[1])) {
-                console.log(`  ✓ Found hero image for ${url.substring(0, 50)}`);
-                return match[1];
+            for (const pattern of heroPatterns) {
+                const match = html.match(pattern);
+                if (match && !isUnwantedImage(match[1])) {
+                    console.log(`  ✓ Found hero image for ${url.substring(0, 50)}`);
+                    image = match[1];
+                    break;
+                }
             }
         }
 
         // Priority 4: First large image in article content
-        const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
-        let imgMatch;
-        let candidateImages = [];
+        if (!image) {
+            const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+            let imgMatch;
+            let candidateImages = [];
 
-        while ((imgMatch = imgRegex.exec(html)) !== null) {
-            const imgUrl = imgMatch[1];
-            const fullMatch = imgMatch[0];
+            while ((imgMatch = imgRegex.exec(html)) !== null) {
+                const imgUrl = imgMatch[1];
+                const fullMatch = imgMatch[0];
 
-            // Skip if unwanted
-            if (isUnwantedImage(imgUrl)) continue;
+                // Skip if unwanted
+                if (isUnwantedImage(imgUrl)) continue;
 
-            // Check if image has width/height attributes suggesting it's large enough
-            const widthMatch = fullMatch.match(/width=["']?(\d+)/i);
-            const heightMatch = fullMatch.match(/height=["']?(\d+)/i);
+                // Check if image has width/height attributes suggesting it's large enough
+                const widthMatch = fullMatch.match(/width=["']?(\d+)/i);
+                const heightMatch = fullMatch.match(/height=["']?(\d+)/i);
 
-            const width = widthMatch ? parseInt(widthMatch[1]) : 0;
-            const height = heightMatch ? parseInt(heightMatch[1]) : 0;
+                const width = widthMatch ? parseInt(widthMatch[1]) : 0;
+                const height = heightMatch ? parseInt(heightMatch[1]) : 0;
 
-            // Prefer images that are at least 400px wide or don't specify size
-            if (width === 0 || width >= 400) {
-                candidateImages.push(imgUrl);
+                // Prefer images that are at least 400px wide or don't specify size
+                if (width === 0 || width >= 400) {
+                    candidateImages.push(imgUrl);
+                }
+            }
+
+            if (candidateImages.length > 0) {
+                console.log(`  ✓ Found candidate image for ${url.substring(0, 50)}`);
+                image = candidateImages[0];
             }
         }
 
-        if (candidateImages.length > 0) {
-            console.log(`  ✓ Found candidate image for ${url.substring(0, 50)}`);
-            return candidateImages[0];
+        // Extract text and generate summary with Gemini
+        let summary = null;
+        if (geminiModel) {
+            const articleText = extractArticleText(html);
+            if (articleText) {
+                summary = await summarizeArticle(title, articleText);
+                if (summary) {
+                    console.log(`  ✓ Generated AI summary for ${url.substring(0, 50)}`);
+                }
+            }
         }
 
-        return null;
+        return { image, summary };
     } catch (error) {
         console.log(`  ✗ Error fetching ${url.substring(0, 50)}: ${error.message}`);
-        return null;
+        return { image: null, summary: null };
     }
 }
 
@@ -356,12 +455,16 @@ async function fetchGoogleNews() {
                 // Check if using placeholder (Unsplash URL)
                 if (article.image && article.image.includes('unsplash.com')) {
                     attemptedCount++;
-                    const realImage = await fetchArticleImage(article.url);
-                    if (realImage && !isUnwantedImage(realImage)) {
-                        article.image = realImage;
+                    const articleData = await fetchArticleData(article.url, article.title);
+                    if (articleData.image && !isUnwantedImage(articleData.image)) {
+                        article.image = articleData.image;
                         enhancedCount++;
-                        return true;
                     }
+                    // Add AI-generated summary if available
+                    if (articleData.summary) {
+                        article.aiSummary = articleData.summary;
+                    }
+                    return true;
                 }
                 return false;
             });

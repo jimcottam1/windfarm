@@ -626,6 +626,17 @@ module.exports = async (req, res) => {
         const startTime = Date.now();
         console.log(`[API] Starting article fetch at ${new Date().toISOString()}`);
 
+        // Parse query parameters for filtering
+        const filters = {
+            projectStage: req.query.projectStage, // planning|approved|construction|operational|objection|unknown
+            sentiment: req.query.sentiment, // positive|neutral|concerns|opposition
+            keyTopic: req.query.keyTopic, // jobs|investment|community|environmental|energy|technology|policy
+            urgency: req.query.urgency, // high|medium|low
+            province: req.query.province, // Munster|Leinster|Connacht|Ulster|National
+            category: req.query.category, // offshore|onshore
+            tag: req.query.tag // offshore|onshore|planning|construction
+        };
+
         // 1. Load cached articles from Vercel KV
         const cachedArticles = await loadCache();
 
@@ -647,13 +658,64 @@ module.exports = async (req, res) => {
             finalArticles = await categorizeArticlesWithAI(finalArticles);
         }
 
-        // 7. Save to Vercel KV cache (includes AI categories)
+        // 7. Apply filters if any are specified
+        let filteredArticles = finalArticles;
+        let filterApplied = false;
+
+        if (filters.projectStage) {
+            filteredArticles = filteredArticles.filter(a =>
+                a.aiCategories && a.aiCategories.projectStage === filters.projectStage
+            );
+            filterApplied = true;
+        }
+
+        if (filters.sentiment) {
+            filteredArticles = filteredArticles.filter(a =>
+                a.aiCategories && a.aiCategories.sentiment === filters.sentiment
+            );
+            filterApplied = true;
+        }
+
+        if (filters.keyTopic) {
+            filteredArticles = filteredArticles.filter(a =>
+                a.aiCategories && a.aiCategories.keyTopics && a.aiCategories.keyTopics.includes(filters.keyTopic)
+            );
+            filterApplied = true;
+        }
+
+        if (filters.urgency) {
+            filteredArticles = filteredArticles.filter(a =>
+                a.aiCategories && a.aiCategories.urgency === filters.urgency
+            );
+            filterApplied = true;
+        }
+
+        if (filters.province) {
+            filteredArticles = filteredArticles.filter(a => a.province === filters.province);
+            filterApplied = true;
+        }
+
+        if (filters.category) {
+            filteredArticles = filteredArticles.filter(a => a.category === filters.category);
+            filterApplied = true;
+        }
+
+        if (filters.tag) {
+            filteredArticles = filteredArticles.filter(a => a.tags && a.tags.includes(filters.tag));
+            filterApplied = true;
+        }
+
+        if (filterApplied) {
+            console.log(`[API] Filtered from ${finalArticles.length} to ${filteredArticles.length} articles`);
+        }
+
+        // 8. Save to Redis cache (includes AI categories)
         await saveCache(finalArticles);
 
         const processingTime = Date.now() - startTime;
         console.log(`[API] Total processing time: ${processingTime}ms`);
 
-        // 8. Build and return response
+        // 9. Build and return response
         const now = new Date();
         const buildInfo = getBuildInfo();
 
@@ -661,12 +723,14 @@ module.exports = async (req, res) => {
         const aiCategorizedCount = finalArticles.filter(a => a.aiCategories).length;
 
         const response = {
-            articles: finalArticles,
+            articles: filteredArticles,
             lastUpdate: now.toISOString(),
-            count: finalArticles.length,
+            count: filteredArticles.length,
+            totalArticles: finalArticles.length,
             cached: cachedArticles.length,
             fresh: newArticles.length,
             aiCategorized: aiCategorizedCount,
+            filtersApplied: filterApplied ? filters : null,
             processingTime: processingTime,
             version: {
                 version: version,

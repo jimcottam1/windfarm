@@ -53,6 +53,34 @@ const filterOnshore = document.getElementById('filterOnshore');
 const filterPlanning = document.getElementById('filterPlanning');
 const filterConstruction = document.getElementById('filterConstruction');
 
+// AI Category filter checkboxes
+const filterAllStages = document.getElementById('filterAllStages');
+const filterPlanningSt = document.getElementById('filterPlanningSt');
+const filterApproved = document.getElementById('filterApproved');
+const filterConstructionSt = document.getElementById('filterConstructionSt');
+const filterOperational = document.getElementById('filterOperational');
+const filterObjection = document.getElementById('filterObjection');
+
+const filterAllSentiment = document.getElementById('filterAllSentiment');
+const filterPositive = document.getElementById('filterPositive');
+const filterNeutral = document.getElementById('filterNeutral');
+const filterConcerns = document.getElementById('filterConcerns');
+const filterOpposition = document.getElementById('filterOpposition');
+
+const filterAllTopics = document.getElementById('filterAllTopics');
+const filterJobs = document.getElementById('filterJobs');
+const filterInvestment = document.getElementById('filterInvestment');
+const filterCommunity = document.getElementById('filterCommunity');
+const filterEnvironmental = document.getElementById('filterEnvironmental');
+const filterEnergy = document.getElementById('filterEnergy');
+const filterTechnology = document.getElementById('filterTechnology');
+const filterPolicy = document.getElementById('filterPolicy');
+
+const filterAllUrgency = document.getElementById('filterAllUrgency');
+const filterHighUrgency = document.getElementById('filterHighUrgency');
+const filterMediumUrgency = document.getElementById('filterMediumUrgency');
+const filterLowUrgency = document.getElementById('filterLowUrgency');
+
 // View buttons
 const viewButtons = document.querySelectorAll('.view-btn');
 
@@ -127,6 +155,94 @@ document.addEventListener('DOMContentLoaded', function() {
     filterOnshore.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
     filterPlanning.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
     filterConstruction.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+
+    // AI Category filter listeners - Project Stages
+    if (filterAllStages) {
+        filterAllStages.addEventListener('change', () => {
+            const checked = filterAllStages.checked;
+            [filterPlanningSt, filterApproved, filterConstructionSt, filterOperational, filterObjection].forEach(f => {
+                if (f) { f.checked = !checked; f.disabled = checked; }
+            });
+            applyFilters();
+            updateActiveFilterCount();
+        });
+
+        [filterPlanningSt, filterApproved, filterConstructionSt, filterOperational, filterObjection].forEach(filter => {
+            if (filter) {
+                filter.addEventListener('change', () => {
+                    filterAllStages.checked = false;
+                    applyFilters();
+                    updateActiveFilterCount();
+                });
+            }
+        });
+    }
+
+    // AI Category filter listeners - Sentiment
+    if (filterAllSentiment) {
+        filterAllSentiment.addEventListener('change', () => {
+            const checked = filterAllSentiment.checked;
+            [filterPositive, filterNeutral, filterConcerns, filterOpposition].forEach(f => {
+                if (f) { f.checked = !checked; f.disabled = checked; }
+            });
+            applyFilters();
+            updateActiveFilterCount();
+        });
+
+        [filterPositive, filterNeutral, filterConcerns, filterOpposition].forEach(filter => {
+            if (filter) {
+                filter.addEventListener('change', () => {
+                    filterAllSentiment.checked = false;
+                    applyFilters();
+                    updateActiveFilterCount();
+                });
+            }
+        });
+    }
+
+    // AI Category filter listeners - Topics
+    if (filterAllTopics) {
+        filterAllTopics.addEventListener('change', () => {
+            const checked = filterAllTopics.checked;
+            [filterJobs, filterInvestment, filterCommunity, filterEnvironmental, filterEnergy, filterTechnology, filterPolicy].forEach(f => {
+                if (f) { f.checked = !checked; f.disabled = checked; }
+            });
+            applyFilters();
+            updateActiveFilterCount();
+        });
+
+        [filterJobs, filterInvestment, filterCommunity, filterEnvironmental, filterEnergy, filterTechnology, filterPolicy].forEach(filter => {
+            if (filter) {
+                filter.addEventListener('change', () => {
+                    filterAllTopics.checked = false;
+                    applyFilters();
+                    updateActiveFilterCount();
+                });
+            }
+        });
+    }
+
+    // AI Category filter listeners - Urgency
+    if (filterAllUrgency) {
+        filterAllUrgency.addEventListener('change', () => {
+            const checked = filterAllUrgency.checked;
+            [filterHighUrgency, filterMediumUrgency, filterLowUrgency].forEach(f => {
+                if (f) { f.checked = !checked; f.disabled = checked; }
+            });
+            applyFilters();
+            updateActiveFilterCount();
+        });
+
+        [filterHighUrgency, filterMediumUrgency, filterLowUrgency].forEach(filter => {
+            if (filter) {
+                filter.addEventListener('change', () => {
+                    filterAllUrgency.checked = false;
+                    applyFilters();
+                    updateActiveFilterCount();
+                });
+            }
+        });
+    }
 
     // View toggle
     viewButtons.forEach(btn => {
@@ -374,6 +490,70 @@ function applyFilters() {
         // Check if article has any of the active filter tags
         return article.tags.some(tag => activeTypeFilters[tag]);
     });
+
+    // Apply AI Category filters - Project Stage
+    if (filterAllStages && !filterAllStages.checked) {
+        const activeStages = [];
+        if (filterPlanningSt && filterPlanningSt.checked) activeStages.push('planning');
+        if (filterApproved && filterApproved.checked) activeStages.push('approved');
+        if (filterConstructionSt && filterConstructionSt.checked) activeStages.push('construction');
+        if (filterOperational && filterOperational.checked) activeStages.push('operational');
+        if (filterObjection && filterObjection.checked) activeStages.push('objection');
+
+        if (activeStages.length > 0) {
+            filtered = filtered.filter(article =>
+                article.aiCategories && activeStages.includes(article.aiCategories.projectStage)
+            );
+        }
+    }
+
+    // Apply AI Category filters - Sentiment
+    if (filterAllSentiment && !filterAllSentiment.checked) {
+        const activeSentiments = [];
+        if (filterPositive && filterPositive.checked) activeSentiments.push('positive');
+        if (filterNeutral && filterNeutral.checked) activeSentiments.push('neutral');
+        if (filterConcerns && filterConcerns.checked) activeSentiments.push('concerns');
+        if (filterOpposition && filterOpposition.checked) activeSentiments.push('opposition');
+
+        if (activeSentiments.length > 0) {
+            filtered = filtered.filter(article =>
+                article.aiCategories && activeSentiments.includes(article.aiCategories.sentiment)
+            );
+        }
+    }
+
+    // Apply AI Category filters - Topics
+    if (filterAllTopics && !filterAllTopics.checked) {
+        const activeTopics = [];
+        if (filterJobs && filterJobs.checked) activeTopics.push('jobs');
+        if (filterInvestment && filterInvestment.checked) activeTopics.push('investment');
+        if (filterCommunity && filterCommunity.checked) activeTopics.push('community');
+        if (filterEnvironmental && filterEnvironmental.checked) activeTopics.push('environmental');
+        if (filterEnergy && filterEnergy.checked) activeTopics.push('energy');
+        if (filterTechnology && filterTechnology.checked) activeTopics.push('technology');
+        if (filterPolicy && filterPolicy.checked) activeTopics.push('policy');
+
+        if (activeTopics.length > 0) {
+            filtered = filtered.filter(article =>
+                article.aiCategories && article.aiCategories.keyTopics &&
+                article.aiCategories.keyTopics.some(topic => activeTopics.includes(topic))
+            );
+        }
+    }
+
+    // Apply AI Category filters - Urgency
+    if (filterAllUrgency && !filterAllUrgency.checked) {
+        const activeUrgency = [];
+        if (filterHighUrgency && filterHighUrgency.checked) activeUrgency.push('high');
+        if (filterMediumUrgency && filterMediumUrgency.checked) activeUrgency.push('medium');
+        if (filterLowUrgency && filterLowUrgency.checked) activeUrgency.push('low');
+
+        if (activeUrgency.length > 0) {
+            filtered = filtered.filter(article =>
+                article.aiCategories && activeUrgency.includes(article.aiCategories.urgency)
+            );
+        }
+    }
 
     // Apply search filter if search text exists
     const searchText = searchInput.value.trim().toLowerCase();

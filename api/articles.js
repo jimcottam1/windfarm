@@ -5,42 +5,40 @@ const path = require('path');
 const { version } = require('../package.json');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize Redis client based on available environment variables
+// Initialize Redis client (ioredis for traditional Redis)
 let redis = null;
-let redisType = null;
 
-// Check for traditional Redis URL (Redis Cloud, etc.)
 if (process.env.REDIS_URL) {
     try {
         const Redis = require('ioredis');
         redis = new Redis(process.env.REDIS_URL, {
             maxRetriesPerRequest: 3,
+            enableOfflineQueue: false,
             retryStrategy: (times) => {
-                if (times > 3) return null;
+                if (times > 3) {
+                    console.error('[Redis] Max retry attempts reached');
+                    return null;
+                }
                 return Math.min(times * 50, 2000);
             }
         });
-        redisType = 'ioredis';
-        console.log('[Redis] Initialized with REDIS_URL (ioredis)');
-    } catch (error) {
-        console.error('[Redis] Failed to initialize ioredis:', error.message);
-    }
-}
-// Check for Vercel KV credentials
-else if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    try {
-        const { createClient } = require('@vercel/kv');
-        redis = createClient({
-            url: process.env.KV_REST_API_URL,
-            token: process.env.KV_REST_API_TOKEN
+
+        // Connection event handlers
+        redis.on('connect', () => {
+            console.log('[Redis] Successfully connected to Redis');
         });
-        redisType = 'vercel-kv';
-        console.log('[Redis] Initialized with Vercel KV credentials');
+
+        redis.on('error', (err) => {
+            console.error('[Redis] Connection error:', err.message);
+        });
+
+        console.log('[Redis] Initialized with REDIS_URL');
     } catch (error) {
-        console.error('[Redis] Failed to initialize Vercel KV:', error.message);
+        console.error('[Redis] Failed to initialize:', error.message);
+        redis = null;
     }
 } else {
-    console.log('[Redis] No Redis connection available - caching disabled');
+    console.log('[Redis] REDIS_URL not found - caching disabled');
 }
 
 // Initialize Gemini AI (optional - only if API key is provided)
@@ -65,17 +63,8 @@ async function loadCache() {
     }
 
     try {
-        let cached = null;
-
-        if (redisType === 'ioredis') {
-            // ioredis returns string, need to parse JSON
-            const data = await redis.get('articles-cache');
-            cached = data ? JSON.parse(data) : null;
-        } else {
-            // Vercel KV returns parsed object
-            cached = await redis.get('articles-cache');
-        }
-
+        const data = await redis.get('articles-cache');
+        const cached = data ? JSON.parse(data) : null;
         console.log(`[Cache] Loaded ${cached ? cached.length : 0} articles from cache`);
         return cached || [];
     } catch (error) {
@@ -92,18 +81,11 @@ async function saveCache(articles) {
 
     try {
         // Store with 7-day expiration (604800 seconds)
-        if (redisType === 'ioredis') {
-            // ioredis requires JSON string and separate EX command
-            await redis.set('articles-cache', JSON.stringify(articles), 'EX', 604800);
-        } else {
-            // Vercel KV accepts object and options
-            await redis.set('articles-cache', articles, { ex: 604800 });
-        }
-
+        await redis.set('articles-cache', JSON.stringify(articles), 'EX', 604800);
         console.log(`[Cache] Saved ${articles.length} articles to cache (7-day TTL)`);
         return true;
     } catch (error) {
-        console.error('[Cache] Error saving cache:', error);
+        console.error('[Cache] Error saving cache:', error.message);
         return false;
     }
 }

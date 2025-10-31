@@ -492,14 +492,55 @@ function createNewsCard(article) {
     const card = document.createElement('div');
     card.className = 'news-card';
 
-    const tagsHTML = article.tags.map(tag =>
-        `<span class="tag ${tag}">${tag}</span>`
-    ).join('');
-
     const timeAgo = getTimeAgo(article.date);
 
     // Add province badge
     const provinceBadge = `<span class="province-badge province-${article.province.toLowerCase()}">${article.province}</span>`;
+
+    // Add AI category badges
+    let aiCategoriesHTML = '';
+    let tagsHTML = '';
+
+    if (article.aiCategories) {
+        // Use AI categories if available
+        const ai = article.aiCategories;
+        const categories = [];
+
+        if (ai.projectStage && ai.projectStage !== 'unknown') {
+            categories.push(`<span class="ai-badge stage-${ai.projectStage}">${ai.projectStage}</span>`);
+        }
+
+        if (ai.sentiment) {
+            const sentimentEmoji = {
+                positive: '✓',
+                neutral: '○',
+                concerns: '⚠',
+                opposition: '✕'
+            };
+            categories.push(`<span class="ai-badge sentiment-${ai.sentiment}">${sentimentEmoji[ai.sentiment] || ''} ${ai.sentiment}</span>`);
+        }
+
+        if (ai.keyTopics && ai.keyTopics.length > 0) {
+            ai.keyTopics.slice(0, 3).forEach(topic => {
+                categories.push(`<span class="ai-badge topic">${topic}</span>`);
+            });
+        }
+
+        // Add type tags (offshore/onshore) to AI categories
+        const typeTags = article.tags.filter(tag => tag === 'offshore' || tag === 'onshore');
+        typeTags.forEach(tag => {
+            categories.unshift(`<span class="ai-badge type-${tag}">${tag}</span>`);
+        });
+
+        if (categories.length > 0) {
+            aiCategoriesHTML = `<div class="ai-categories">${categories.join('')}</div>`;
+        }
+    } else {
+        // Fallback to old tags if no AI categories
+        tagsHTML = article.tags.map(tag =>
+            `<span class="tag ${tag}">${tag}</span>`
+        ).join('');
+    }
 
     card.innerHTML = `
         <div class="news-card-image">
@@ -518,6 +559,7 @@ function createNewsCard(article) {
             </div>
             <h3>${article.title}</h3>
             <p class="news-card-description">${article.description || 'No description available.'}</p>
+            ${aiCategoriesHTML}
             <div class="news-card-footer">
                 <span class="news-card-source">${article.source}</span>
                 <a href="${article.url}" target="_blank" class="news-card-link">

@@ -3,6 +3,192 @@ const xml2js = require('xml2js');
 const fs = require('fs');
 const path = require('path');
 const { version } = require('../package.json');
+const { kv } = require('@vercel/kv');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Initialize Gemini AI (optional - only if API key is provided)
+let geminiModel = null;
+if (process.env.GEMINI_API_KEY) {
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+        console.log('[AI] Gemini initialized for smart categorization');
+    } catch (error) {
+        console.log('[AI] Gemini initialization failed:', error.message);
+    }
+} else {
+    console.log('[AI] Gemini API key not provided - AI categorization disabled');
+}
+
+// Vercel KV Cache Helper Functions
+async function loadCache() {
+    try {
+        const cached = await kv.get('articles-cache');
+        console.log(`[KV] Loaded ${cached ? cached.length : 0} articles from cache`);
+        return cached || [];
+    } catch (error) {
+        console.error('[KV] Error loading cache:', error.message);
+        return [];
+    }
+}
+
+async function saveCache(articles) {
+    try {
+        // Store with 7-day expiration (604800 seconds)
+        await kv.set('articles-cache', articles, { ex: 604800 });
+        console.log(`[KV] Saved ${articles.length} articles to cache (7-day TTL)`);
+        return true;
+    } catch (error) {
+        console.error('[KV] Error saving cache:', error);
+        return false;
+    }
+}
+
+function mergeArticles(newArticles, cachedArticles) {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    // Keep cached articles that are less than 7 days old
+    const validCached = cachedArticles.filter(article => {
+        const articleDate = new Date(article.date);
+        return articleDate > sevenDaysAgo;
+    });
+
+    console.log(`[Merge] Valid cached articles (< 7 days): ${validCached.length}`);
+    console.log(`[Merge] New articles fetched: ${newArticles.length}`);
+
+    // Merge new and cached articles
+    const allArticles = [...newArticles, ...validCached];
+
+    // Deduplicate by title (case-insensitive)
+    const seen = new Set();
+    const uniqueArticles = allArticles.filter(article => {
+        const key = article.title.toLowerCase().trim();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    console.log(`[Merge] After deduplication: ${uniqueArticles.length} articles`);
+    return uniqueArticles;
+}
+
+// AI Categorization Functions
+async function categorizeArticlesWithAI(articles) {
+    if (!geminiModel || !articles || articles.length === 0) {
+        console.log('[AI] Skipping AI categorization (no model or no articles)');
+        return articles;
+    }
+
+    // Find articles that don't have AI categories yet
+    const needsCategorization = articles.filter(article => !article.aiCategories);
+
+    if (needsCategorization.length === 0) {
+        console.log('[AI] All articles already have AI categories');
+        return articles;
+    }
+
+    // Limit to first 40 articles to avoid timeout (can expand in subsequent runs)
+    const MAX_TO_CATEGORIZE = 40;
+    const articlesToProcess = needsCategorization.slice(0, MAX_TO_CATEGORIZE);
+
+    console.log(`[AI] Categorizing ${articlesToProcess.length} of ${needsCategorization.length} articles with Gemini...`);
+    if (needsCategorization.length > MAX_TO_CATEGORIZE) {
+        console.log(`[AI] Remaining ${needsCategorization.length - MAX_TO_CATEGORIZE} will be categorized in next request`);
+    }
+
+    // Process in batches of 20 to avoid timeouts
+    const BATCH_SIZE = 20;
+    const batches = [];
+    for (let i = 0; i < articlesToProcess.length; i += BATCH_SIZE) {
+        batches.push(articlesToProcess.slice(i, i + BATCH_SIZE));
+    }
+
+    let totalCategorized = 0;
+
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        console.log(`[AI] Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} articles)`);
+
+        try {
+            const articlesList = batch.map((article, index) =>
+                `Article ${index}:
+Title: ${article.title}
+Description: ${article.description}
+Source: ${article.source}`
+            ).join('\n\n');
+
+            const prompt = `Analyze these ${batch.length} Irish wind energy news articles and categorize each one. Return ONLY a valid JSON array with one object per article (no markdown, no extra text).
+
+${articlesList}
+
+Return a JSON array in this exact format:
+[
+  {
+    "index": 0,
+    "projectStage": "planning|approved|construction|operational|objection|unknown",
+    "sentiment": "positive|neutral|concerns|opposition",
+    "keyTopics": ["jobs", "investment", "community", "environmental", "energy", "technology", "policy"],
+    "urgency": "high|medium|low"
+  },
+  ... (one object for each article)
+]
+
+Rules:
+- projectStage: Current stage of wind farm development
+- sentiment: Overall tone of the article
+- keyTopics: Array of 1-3 most relevant topics from the list above
+- urgency: How timely/important the news is
+- MUST return exactly ${batch.length} objects in the array
+
+JSON:`;
+
+            const result = await geminiModel.generateContent(prompt);
+            const response = await result.response;
+            let jsonText = response.text().trim();
+
+            // Clean up response - remove markdown code blocks if present
+            jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+            const categoriesArray = JSON.parse(jsonText);
+
+            // Validate response is an array
+            if (!Array.isArray(categoriesArray)) {
+                console.log(`[AI] Batch ${batchIndex + 1}: Response is not an array`);
+                continue;
+            }
+
+            // Apply AI categories to articles
+            categoriesArray.forEach(cat => {
+                if (cat.index !== undefined && cat.index < batch.length) {
+                    const article = batch[cat.index];
+                    article.aiCategories = {
+                        projectStage: cat.projectStage,
+                        sentiment: cat.sentiment,
+                        keyTopics: cat.keyTopics || [],
+                        urgency: cat.urgency
+                    };
+                    totalCategorized++;
+                }
+            });
+
+            console.log(`[AI] Batch ${batchIndex + 1}: Successfully categorized ${categoriesArray.length} articles`);
+
+        } catch (error) {
+            console.log(`[AI] Batch ${batchIndex + 1} failed: ${error.message}`);
+        }
+
+        // Small delay between batches to avoid rate limiting
+        if (batchIndex < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    }
+
+    console.log(`[AI] Total categorized: ${totalCategorized}/${articlesToProcess.length}`);
+    if (needsCategorization.length > totalCategorized) {
+        console.log(`[AI] Note: ${needsCategorization.length - totalCategorized} articles still need categorization (will process in next run)`);
+    }
+    return articles;
+}
 
 // Get build info from pre-generated file
 function getBuildInfo() {
@@ -358,25 +544,64 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const articles = await fetchGoogleNews();
+        const startTime = Date.now();
+        console.log(`[API] Starting article fetch at ${new Date().toISOString()}`);
+
+        // 1. Load cached articles from Vercel KV
+        const cachedArticles = await loadCache();
+
+        // 2. Fetch fresh articles from RSS feeds
+        const newArticles = await fetchGoogleNews();
+
+        // 3. Merge cached and new articles (deduplicate, keep last 7 days)
+        const mergedArticles = mergeArticles(newArticles, cachedArticles);
+
+        // 4. Sort by date (newest first)
+        mergedArticles.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // 5. Limit to 400 articles
+        let finalArticles = mergedArticles.slice(0, 400);
+        console.log(`[API] Final article count: ${finalArticles.length}`);
+
+        // 6. Run AI categorization on articles that don't have it yet
+        if (geminiModel) {
+            finalArticles = await categorizeArticlesWithAI(finalArticles);
+        }
+
+        // 7. Save to Vercel KV cache (includes AI categories)
+        await saveCache(finalArticles);
+
+        const processingTime = Date.now() - startTime;
+        console.log(`[API] Total processing time: ${processingTime}ms`);
+
+        // 8. Build and return response
         const now = new Date();
         const buildInfo = getBuildInfo();
 
+        // Count articles with AI categories
+        const aiCategorizedCount = finalArticles.filter(a => a.aiCategories).length;
+
         const response = {
-            articles: articles,
+            articles: finalArticles,
             lastUpdate: now.toISOString(),
-            count: articles.length,
+            count: finalArticles.length,
+            cached: cachedArticles.length,
+            fresh: newArticles.length,
+            aiCategorized: aiCategorizedCount,
+            processingTime: processingTime,
             version: {
                 version: version,
                 feeds: 13,
                 maxArticles: 400,
+                cacheTTL: '7 days',
+                aiEnabled: !!geminiModel,
                 ...(buildInfo && { build: buildInfo })
             }
         };
 
         res.status(200).json(response);
     } catch (error) {
-        console.error('Error in serverless function:', error);
+        console.error('[API] Error in serverless function:', error);
         res.status(500).json({
             error: 'Failed to fetch articles',
             message: error.message

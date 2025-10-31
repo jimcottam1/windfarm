@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
@@ -6,6 +7,8 @@ const cron = require('node-cron');
 const { execSync } = require('child_process');
 const { version } = require('./package.json');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,74 +53,79 @@ let geminiModel = null;
 if (process.env.GEMINI_API_KEY) {
     try {
         genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        geminiModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-        console.log('✓ Gemini AI initialized');
+        geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+        console.log('✓ Gemini AI initialized for smart categorization');
     } catch (error) {
         console.log('✗ Gemini AI initialization failed:', error.message);
     }
 } else {
-    console.log('ℹ Gemini API key not provided - AI summarization disabled');
+    console.log('ℹ Gemini API key not provided - AI categorization disabled');
 }
 
-// Extract article text from HTML
-function extractArticleText(html) {
-    try {
-        // Remove script and style tags
-        let text = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-        text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-
-        // Try to find article content (common patterns)
-        const articlePatterns = [
-            /<article[^>]*>([\s\S]*?)<\/article>/i,
-            /<div[^>]*class="[^"]*article[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-            /<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-            /<main[^>]*>([\s\S]*?)<\/main>/i
-        ];
-
-        for (const pattern of articlePatterns) {
-            const match = text.match(pattern);
-            if (match) {
-                text = match[1];
-                break;
-            }
-        }
-
-        // Remove all HTML tags
-        text = text.replace(/<[^>]+>/g, ' ');
-
-        // Clean up whitespace
-        text = text.replace(/\s+/g, ' ').trim();
-
-        // Limit to first 3000 characters to stay within API limits
-        return text.substring(0, 3000);
-    } catch (error) {
-        return '';
-    }
-}
-
-// Summarize article using Gemini
-async function summarizeArticle(title, articleText) {
-    if (!geminiModel || !articleText || articleText.length < 100) {
-        return null;
+// Categorize multiple articles using Gemini AI (batch processing)
+async function categorizeArticlesWithAI(articles) {
+    if (!geminiModel || !articles || articles.length === 0) {
+        return [];
     }
 
     try {
-        const prompt = `Summarize this Irish wind energy news article in 2-3 clear, informative sentences. Focus on the key facts like location, project size, companies involved, and current status.
+        // Build article list for prompt
+        const articlesList = articles.map((article, index) =>
+            `Article ${index}:
+Title: ${article.title}
+Description: ${article.description}
+Source: ${article.source}`
+        ).join('\n\n');
 
-Title: ${title}
+        const prompt = `Analyze these ${articles.length} Irish wind energy news articles and categorize each one. Return ONLY a valid JSON array with one object per article (no markdown, no extra text).
 
-Article: ${articleText}
+${articlesList}
 
-Summary:`;
+Return a JSON array in this exact format:
+[
+  {
+    "index": 0,
+    "projectStage": "planning|approved|construction|operational|objection|unknown",
+    "sentiment": "positive|neutral|concerns|opposition",
+    "keyTopics": ["jobs", "investment", "community", "environmental", "energy", "technology", "policy"],
+    "urgency": "high|medium|low"
+  },
+  ... (one object for each article)
+]
+
+Rules:
+- projectStage: Current stage of wind farm development
+- sentiment: Overall tone of the article
+- keyTopics: Array of 1-3 most relevant topics from the list above
+- urgency: How timely/important the news is
+- MUST return exactly ${articles.length} objects in the array
+
+JSON:`;
 
         const result = await geminiModel.generateContent(prompt);
         const response = await result.response;
-        const summary = response.text().trim();
+        let jsonText = response.text().trim();
 
-        return summary;
+        // Clean up response - remove markdown code blocks if present
+        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        const categoriesArray = JSON.parse(jsonText);
+
+        // Validate response is an array
+        if (!Array.isArray(categoriesArray)) {
+            console.log(`  ✗ AI response is not an array`);
+            return [];
+        }
+
+        // Validate each category has required fields
+        const validCategories = categoriesArray.filter(cat =>
+            cat.projectStage && cat.sentiment && cat.keyTopics && cat.index !== undefined
+        );
+
+        return validCategories;
     } catch (error) {
-        console.log(`  ✗ Gemini summarization failed: ${error.message}`);
-        return null;
+        console.log(`  ✗ Batch AI categorization failed: ${error.message}`);
+        return [];
     }
 }
 
@@ -226,22 +234,10 @@ async function fetchArticleData(url, title) {
             }
         }
 
-        // Extract text and generate summary with Gemini
-        let summary = null;
-        if (geminiModel) {
-            const articleText = extractArticleText(html);
-            if (articleText) {
-                summary = await summarizeArticle(title, articleText);
-                if (summary) {
-                    console.log(`  ✓ Generated AI summary for ${url.substring(0, 50)}`);
-                }
-            }
-        }
-
-        return { image, summary };
+        return { image };
     } catch (error) {
         console.log(`  ✗ Error fetching ${url.substring(0, 50)}: ${error.message}`);
-        return { image: null, summary: null };
+        return { image: null };
     }
 }
 
@@ -259,13 +255,96 @@ const CONFIG = {
         'https://news.google.com/rss/search?q=onshore+wind+ireland&hl=en-IE&gl=IE&ceid=IE:en',
         'https://news.google.com/rss/search?q=renewable+energy+ireland&hl=en-IE&gl=IE&ceid=IE:en'
     ],
-    REFRESH_INTERVAL: 15 // minutes
+    REFRESH_INTERVAL: 10 // minutes
 };
+
+// Cache configuration
+const CACHE_FILE = path.join(__dirname, '.cache', 'articles-cache.json');
+const CACHE_MAX_AGE_DAYS = 7; // Keep articles for 7 days
 
 // In-memory cache
 let cachedArticles = [];
 let lastFetchTime = null;
 let isFetching = false;
+
+// Ensure cache directory exists
+function ensureCacheDirectory() {
+    const cacheDir = path.dirname(CACHE_FILE);
+    if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+    }
+}
+
+// Load cached articles from file
+function loadCachedArticles() {
+    try {
+        ensureCacheDirectory();
+        if (fs.existsSync(CACHE_FILE)) {
+            const data = fs.readFileSync(CACHE_FILE, 'utf8');
+            const parsed = JSON.parse(data);
+
+            // Filter out old articles (older than CACHE_MAX_AGE_DAYS)
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - CACHE_MAX_AGE_DAYS);
+
+            const validArticles = parsed.articles.filter(article => {
+                const articleDate = new Date(article.date);
+                return articleDate >= cutoffDate;
+            });
+
+            console.log(`Loaded ${validArticles.length} cached articles from disk (${parsed.articles.length - validArticles.length} expired)`);
+            return validArticles;
+        }
+    } catch (error) {
+        console.error('Error loading cached articles:', error.message);
+    }
+    return [];
+}
+
+// Save articles to cache file
+function saveCachedArticles(articles) {
+    try {
+        ensureCacheDirectory();
+        const cacheData = {
+            timestamp: Date.now(),
+            articles: articles
+        };
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2), 'utf8');
+        console.log(`Saved ${articles.length} articles to disk cache`);
+    } catch (error) {
+        console.error('Error saving cached articles:', error.message);
+    }
+}
+
+// Merge new articles with cached ones, preserving AI categories
+function mergeArticlesWithCache(newArticles, cachedArticles) {
+    const merged = [...newArticles];
+    const newArticleUrls = new Set(newArticles.map(a => a.url));
+
+    // Add cached articles that aren't in the new feed (but keep their AI categories)
+    cachedArticles.forEach(cachedArticle => {
+        if (!newArticleUrls.has(cachedArticle.url) && cachedArticle.aiCategories) {
+            // Check if article is still within cache age
+            const articleDate = new Date(cachedArticle.date);
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - CACHE_MAX_AGE_DAYS);
+
+            if (articleDate >= cutoffDate) {
+                merged.push(cachedArticle);
+            }
+        }
+    });
+
+    // For articles in both new and cached, preserve AI categories from cache
+    merged.forEach(article => {
+        const cached = cachedArticles.find(c => c.url === article.url);
+        if (cached && cached.aiCategories && !article.aiCategories) {
+            article.aiCategories = cached.aiCategories;
+        }
+    });
+
+    return merged;
+}
 
 // Province detection
 function categorizeProvince(text) {
@@ -355,6 +434,9 @@ async function fetchGoogleNews() {
     isFetching = true;
     console.log(`[${new Date().toISOString()}] Fetching from Google News RSS...`);
 
+    // Load previously cached articles (including AI categories)
+    const previouslyCached = loadCachedArticles();
+
     const articles = [];
     const processedUrls = new Set();
     let realImageCount = 0;
@@ -397,7 +479,7 @@ async function fetchGoogleNews() {
                         if (!processedUrls.has(link) && title) {
                             processedUrls.add(link);
 
-                            articles.push({
+                            const article = {
                                 title: title,
                                 description: stripHTML(description).substring(0, 200) + '...',
                                 source: source,
@@ -407,7 +489,9 @@ async function fetchGoogleNews() {
                                 tags: categorizeTags(title + ' ' + description),
                                 category: categorizeArticle(title + ' ' + description),
                                 province: categorizeProvince(title + ' ' + description)
-                            });
+                            };
+
+                            articles.push(article);
                         }
                     }
                 }
@@ -428,31 +512,72 @@ async function fetchGoogleNews() {
             return true;
         });
 
+        // Merge with cached articles to preserve AI categories
+        const mergedArticles = mergeArticlesWithCache(uniqueArticles, previouslyCached);
+
         // Sort by date (newest first)
-        uniqueArticles.sort((a, b) => {
+        mergedArticles.sort((a, b) => {
             return new Date(b.date) - new Date(a.date);
         });
 
         // Limit to 400 articles
-        const limitedArticles = uniqueArticles.slice(0, 400);
+        const limitedArticles = mergedArticles.slice(0, 400);
 
-        // Fetch real images for articles with placeholder images (process first 50)
-        console.log('Fetching featured images from article pages...');
-        console.log('This may take 20-30 seconds...');
-        const articlesToEnhance = limitedArticles.slice(0, 50);
+        // Batch process AI categorization (40 articles at once for efficiency)
+        // Only categorize NEW articles that don't already have AI categories
+        console.log('Starting AI categorization...');
+        const BATCH_SIZE = 40;
+
+        // Filter out articles that already have AI categories
+        const articlesNeedingCategories = limitedArticles.filter(article => !article.aiCategories);
+        const articlesToCategorize = articlesNeedingCategories.slice(0, BATCH_SIZE);
+        const alreadyCategorized = limitedArticles.filter(article => article.aiCategories).length;
+
+        let categorizedCount = 0;
+
+        if (alreadyCategorized > 0) {
+            console.log(`Found ${alreadyCategorized} articles with existing AI categories (skipping)`);
+        }
+
+        if (geminiModel && articlesToCategorize.length > 0) {
+            console.log(`Processing ${articlesToCategorize.length} NEW articles in a single batch...`);
+
+            const aiCategoriesArray = await categorizeArticlesWithAI(articlesToCategorize);
+
+            if (aiCategoriesArray && aiCategoriesArray.length > 0) {
+                // Map categories back to articles by index
+                aiCategoriesArray.forEach(categoryData => {
+                    const article = articlesToCategorize[categoryData.index];
+                    if (article) {
+                        article.aiCategories = {
+                            projectStage: categoryData.projectStage,
+                            sentiment: categoryData.sentiment,
+                            keyTopics: categoryData.keyTopics,
+                            urgency: categoryData.urgency
+                        };
+                        categorizedCount++;
+                        console.log(`  ✓ Article ${categoryData.index}: Stage=${categoryData.projectStage}, Sentiment=${categoryData.sentiment}, Topics=[${categoryData.keyTopics.join(', ')}], Urgency=${categoryData.urgency}`);
+                    }
+                });
+                console.log(`Successfully categorized ${categorizedCount}/${articlesToCategorize.length} NEW articles`);
+            } else {
+                console.log('  ✗ Batch categorization returned no results');
+            }
+        } else if (articlesToCategorize.length === 0 && alreadyCategorized > 0) {
+            console.log('All articles already have AI categories - no new categorization needed');
+        }
+
+        // Fetch real images for articles with placeholder images (optional, separate from AI)
+        const articlesToEnhance = limitedArticles.slice(0, 10);
         let enhancedCount = 0;
         let attemptedCount = 0;
 
-        // Process articles in batches of 3 for better success rate
-        for (let i = 0; i < articlesToEnhance.length; i += 3) {
-            const batch = articlesToEnhance.slice(i, i + 3);
-            const batchNum = Math.floor(i / 3) + 1;
-            const totalBatches = Math.ceil(articlesToEnhance.length / 3);
+        if (articlesToEnhance.some(a => a.image && a.image.includes('unsplash.com'))) {
+            console.log('\nFetching featured images...');
+            for (let i = 0; i < articlesToEnhance.length; i++) {
+                const article = articlesToEnhance[i];
 
-            console.log(`  Processing batch ${batchNum}/${totalBatches}...`);
-
-            const promises = batch.map(async (article) => {
-                // Check if using placeholder (Unsplash URL)
+                // Fetch image if using placeholder (Unsplash URL)
                 if (article.image && article.image.includes('unsplash.com')) {
                     attemptedCount++;
                     const articleData = await fetchArticleData(article.url, article.title);
@@ -460,29 +585,24 @@ async function fetchGoogleNews() {
                         article.image = articleData.image;
                         enhancedCount++;
                     }
-                    // Add AI-generated summary if available
-                    if (articleData.summary) {
-                        article.aiSummary = articleData.summary;
-                    }
-                    return true;
                 }
-                return false;
-            });
-
-            await Promise.all(promises);
-            // Delay between batches
-            await new Promise(resolve => setTimeout(resolve, 600));
+            }
         }
 
         // Update real image count
         realImageCount = limitedArticles.filter(a => !a.image.includes('unsplash.com')).length;
         console.log(`Successfully enhanced ${enhancedCount}/${attemptedCount} articles with real images`);
+        console.log(`Successfully categorized ${categorizedCount} articles with AI`);
 
         cachedArticles = limitedArticles;
         lastFetchTime = new Date();
 
+        // Save articles to disk cache (preserves AI categories across restarts)
+        saveCachedArticles(cachedArticles);
+
         console.log(`Successfully cached ${cachedArticles.length} articles`);
         console.log(`Enhanced ${enhancedCount} articles with real images`);
+        console.log(`AI Categorized ${categorizedCount} articles`);
         console.log(`Images: ${realImageCount} real, ${placeholderCount} placeholders`);
     } catch (error) {
         console.error('Error in fetchGoogleNews:', error);

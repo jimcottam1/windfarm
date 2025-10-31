@@ -18,7 +18,9 @@
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@vercel/kv": "^3.0.0",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.18.2",
     "node-cron": "^3.0.3",
     "node-fetch": "^2.7.0",

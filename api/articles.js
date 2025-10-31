@@ -3,22 +3,35 @@ const xml2js = require('xml2js');
 const fs = require('fs');
 const path = require('path');
 const { version } = require('../package.json');
-const { createClient } = require('@vercel/kv');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Initialize KV client with REDIS_URL if available
-let kv = null;
+// Initialize Redis client based on available environment variables
+let redis = null;
+let redisType = null;
+
 if (process.env.REDIS_URL) {
-    kv = createClient({ url: process.env.REDIS_URL });
-    console.log('[KV] Initialized with REDIS_URL');
+    // Traditional Redis (like Redis Cloud)
+    const Redis = require('ioredis');
+    redis = new Redis(process.env.REDIS_URL, {
+        maxRetriesPerRequest: 3,
+        retryStrategy: (times) => {
+            if (times > 3) return null;
+            return Math.min(times * 50, 2000);
+        }
+    });
+    redisType = 'ioredis';
+    console.log('[Redis] Initialized with REDIS_URL (ioredis)');
 } else if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    kv = createClient({
+    // Vercel KV (Upstash)
+    const { createClient } = require('@vercel/kv');
+    redis = createClient({
         url: process.env.KV_REST_API_URL,
         token: process.env.KV_REST_API_TOKEN
     });
-    console.log('[KV] Initialized with KV credentials');
+    redisType = 'vercel-kv';
+    console.log('[Redis] Initialized with Vercel KV credentials');
 } else {
-    console.log('[KV] No Redis connection available - caching disabled');
+    console.log('[Redis] No Redis connection available - caching disabled');
 }
 
 // Initialize Gemini AI (optional - only if API key is provided)
@@ -35,36 +48,53 @@ if (process.env.GEMINI_API_KEY) {
     console.log('[AI] Gemini API key not provided - AI categorization disabled');
 }
 
-// Vercel KV Cache Helper Functions
+// Redis Cache Helper Functions
 async function loadCache() {
-    if (!kv) {
-        console.log('[KV] Caching disabled - no Redis connection');
+    if (!redis) {
+        console.log('[Cache] Caching disabled - no Redis connection');
         return [];
     }
 
     try {
-        const cached = await kv.get('articles-cache');
-        console.log(`[KV] Loaded ${cached ? cached.length : 0} articles from cache`);
+        let cached = null;
+
+        if (redisType === 'ioredis') {
+            // ioredis returns string, need to parse JSON
+            const data = await redis.get('articles-cache');
+            cached = data ? JSON.parse(data) : null;
+        } else {
+            // Vercel KV returns parsed object
+            cached = await redis.get('articles-cache');
+        }
+
+        console.log(`[Cache] Loaded ${cached ? cached.length : 0} articles from cache`);
         return cached || [];
     } catch (error) {
-        console.error('[KV] Error loading cache:', error.message);
+        console.error('[Cache] Error loading cache:', error.message);
         return [];
     }
 }
 
 async function saveCache(articles) {
-    if (!kv) {
-        console.log('[KV] Caching disabled - skipping cache save');
+    if (!redis) {
+        console.log('[Cache] Caching disabled - skipping cache save');
         return false;
     }
 
     try {
         // Store with 7-day expiration (604800 seconds)
-        await kv.set('articles-cache', articles, { ex: 604800 });
-        console.log(`[KV] Saved ${articles.length} articles to cache (7-day TTL)`);
+        if (redisType === 'ioredis') {
+            // ioredis requires JSON string and separate EX command
+            await redis.set('articles-cache', JSON.stringify(articles), 'EX', 604800);
+        } else {
+            // Vercel KV accepts object and options
+            await redis.set('articles-cache', articles, { ex: 604800 });
+        }
+
+        console.log(`[Cache] Saved ${articles.length} articles to cache (7-day TTL)`);
         return true;
     } catch (error) {
-        console.error('[KV] Error saving cache:', error);
+        console.error('[Cache] Error saving cache:', error);
         return false;
     }
 }

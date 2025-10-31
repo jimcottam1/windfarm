@@ -3,8 +3,23 @@ const xml2js = require('xml2js');
 const fs = require('fs');
 const path = require('path');
 const { version } = require('../package.json');
-const { kv } = require('@vercel/kv');
+const { createClient } = require('@vercel/kv');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Initialize KV client with REDIS_URL if available
+let kv = null;
+if (process.env.REDIS_URL) {
+    kv = createClient({ url: process.env.REDIS_URL });
+    console.log('[KV] Initialized with REDIS_URL');
+} else if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    kv = createClient({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN
+    });
+    console.log('[KV] Initialized with KV credentials');
+} else {
+    console.log('[KV] No Redis connection available - caching disabled');
+}
 
 // Initialize Gemini AI (optional - only if API key is provided)
 let geminiModel = null;
@@ -22,6 +37,11 @@ if (process.env.GEMINI_API_KEY) {
 
 // Vercel KV Cache Helper Functions
 async function loadCache() {
+    if (!kv) {
+        console.log('[KV] Caching disabled - no Redis connection');
+        return [];
+    }
+
     try {
         const cached = await kv.get('articles-cache');
         console.log(`[KV] Loaded ${cached ? cached.length : 0} articles from cache`);
@@ -33,6 +53,11 @@ async function loadCache() {
 }
 
 async function saveCache(articles) {
+    if (!kv) {
+        console.log('[KV] Caching disabled - skipping cache save');
+        return false;
+    }
+
     try {
         // Store with 7-day expiration (604800 seconds)
         await kv.set('articles-cache', articles, { ex: 604800 });

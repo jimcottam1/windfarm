@@ -7,29 +7,45 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Redis client (ioredis for traditional Redis)
 let redis = null;
+let redisReady = false;
 
 if (process.env.REDIS_URL) {
     try {
         const Redis = require('ioredis');
         redis = new Redis(process.env.REDIS_URL, {
             maxRetriesPerRequest: 3,
-            enableOfflineQueue: false,
+            enableOfflineQueue: true, // Allow commands to queue while connecting
+            connectTimeout: 10000,
+            lazyConnect: false,
             retryStrategy: (times) => {
                 if (times > 3) {
                     console.error('[Redis] Max retry attempts reached');
                     return null;
                 }
-                return Math.min(times * 50, 2000);
+                const delay = Math.min(times * 200, 2000);
+                console.log(`[Redis] Retry attempt ${times}, waiting ${delay}ms`);
+                return delay;
             }
         });
 
         // Connection event handlers
         redis.on('connect', () => {
-            console.log('[Redis] Successfully connected to Redis');
+            console.log('[Redis] Connecting to Redis...');
+        });
+
+        redis.on('ready', () => {
+            console.log('[Redis] Successfully connected and ready');
+            redisReady = true;
         });
 
         redis.on('error', (err) => {
             console.error('[Redis] Connection error:', err.message);
+            redisReady = false;
+        });
+
+        redis.on('close', () => {
+            console.log('[Redis] Connection closed');
+            redisReady = false;
         });
 
         console.log('[Redis] Initialized with REDIS_URL');
@@ -63,9 +79,18 @@ async function loadCache() {
     }
 
     try {
-        const data = await redis.get('articles-cache');
-        const cached = data ? JSON.parse(data) : null;
-        console.log(`[Cache] Loaded ${cached ? cached.length : 0} articles from cache`);
+        // Wait for connection with timeout
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+        const dataPromise = redis.get('articles-cache');
+        const data = await Promise.race([dataPromise, timeout]);
+
+        if (data === null) {
+            console.log('[Cache] No cached data found or timeout');
+            return [];
+        }
+
+        const cached = JSON.parse(data);
+        console.log(`[Cache] Loaded ${cached.length} articles from cache`);
         return cached || [];
     } catch (error) {
         console.error('[Cache] Error loading cache:', error.message);
@@ -80,8 +105,16 @@ async function saveCache(articles) {
     }
 
     try {
-        // Store with 7-day expiration (604800 seconds)
-        await redis.set('articles-cache', JSON.stringify(articles), 'EX', 604800);
+        // Store with 7-day expiration (604800 seconds) with timeout
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(false), 5000));
+        const savePromise = redis.set('articles-cache', JSON.stringify(articles), 'EX', 604800);
+        const result = await Promise.race([savePromise, timeout]);
+
+        if (result === false) {
+            console.log('[Cache] Save timeout after 5 seconds');
+            return false;
+        }
+
         console.log(`[Cache] Saved ${articles.length} articles to cache (7-day TTL)`);
         return true;
     } catch (error) {

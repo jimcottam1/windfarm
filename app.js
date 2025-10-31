@@ -47,11 +47,7 @@ const filterConnacht = document.getElementById('filterConnacht');
 const filterUlster = document.getElementById('filterUlster');
 const filterNational = document.getElementById('filterNational');
 
-// Type filter checkboxes
-const filterOffshore = document.getElementById('filterOffshore');
-const filterOnshore = document.getElementById('filterOnshore');
-const filterPlanning = document.getElementById('filterPlanning');
-const filterConstruction = document.getElementById('filterConstruction');
+// Type filter checkboxes - REMOVED (now using AI categories)
 
 // AI Category filter checkboxes
 const filterAllStages = document.getElementById('filterAllStages');
@@ -129,6 +125,9 @@ document.addEventListener('DOMContentLoaded', function() {
         updateStats();
     }
 
+    // Initialize filter count on page load
+    updateActiveFilterCount();
+
     // Event listeners
     searchBtn.addEventListener('click', performSearch);
     searchInput.addEventListener('keyup', function(e) {
@@ -143,6 +142,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Collapsible filter sections - accordion style (only one open at a time)
+    document.querySelectorAll('.filter-section-header').forEach(header => {
+        header.addEventListener('click', function() {
+            const wasOpen = this.classList.contains('open');
+            const filterGroup = this.nextElementSibling;
+
+            // Close all other sections
+            document.querySelectorAll('.filter-section-header').forEach(otherHeader => {
+                otherHeader.classList.remove('open');
+                const otherGroup = otherHeader.nextElementSibling;
+                if (otherGroup && otherGroup.classList.contains('filter-group')) {
+                    otherGroup.classList.add('collapsed');
+                }
+            });
+
+            // If this section wasn't open, open it
+            if (!wasOpen && filterGroup && filterGroup.classList.contains('filter-group')) {
+                this.classList.add('open');
+                filterGroup.classList.remove('collapsed');
+            }
+        });
+    });
+
     // Province filter listeners
     filterMunster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
     filterLeinster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
@@ -150,11 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
     filterUlster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
     filterNational.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
 
-    // Type filter listeners
-    filterOffshore.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
-    filterOnshore.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
-    filterPlanning.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
-    filterConstruction.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    // Type filter listeners - REMOVED (now using AI categories)
 
     // AI Category filter listeners - Project Stages
     if (filterAllStages) {
@@ -165,6 +183,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             applyFilters();
             updateActiveFilterCount();
+            // Auto-collapse section when "All" is selected
+            if (checked) {
+                collapseFilterSection(filterAllStages);
+            }
         });
 
         [filterPlanningSt, filterApproved, filterConstructionSt, filterOperational, filterObjection].forEach(filter => {
@@ -187,6 +209,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             applyFilters();
             updateActiveFilterCount();
+            // Auto-collapse section when "All" is selected
+            if (checked) {
+                collapseFilterSection(filterAllSentiment);
+            }
         });
 
         [filterPositive, filterNeutral, filterConcerns, filterOpposition].forEach(filter => {
@@ -209,6 +235,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             applyFilters();
             updateActiveFilterCount();
+            // Auto-collapse section when "All" is selected
+            if (checked) {
+                collapseFilterSection(filterAllTopics);
+            }
         });
 
         [filterJobs, filterInvestment, filterCommunity, filterEnvironmental, filterEnergy, filterTechnology, filterPolicy].forEach(filter => {
@@ -231,6 +261,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             applyFilters();
             updateActiveFilterCount();
+            // Auto-collapse section when "All" is selected
+            if (checked) {
+                collapseFilterSection(filterAllUrgency);
+            }
         });
 
         [filterHighUrgency, filterMediumUrgency, filterLowUrgency].forEach(filter => {
@@ -472,23 +506,9 @@ function applyFilters() {
         National: filterNational.checked
     };
 
-    // Get active type filters
-    const activeTypeFilters = {
-        offshore: filterOffshore.checked,
-        onshore: filterOnshore.checked,
-        planning: filterPlanning.checked,
-        construction: filterConstruction.checked
-    };
-
     // Apply province filters
     filtered = filtered.filter(article => {
         return activeProvinceFilters[article.province];
-    });
-
-    // Apply type tag filters
-    filtered = filtered.filter(article => {
-        // Check if article has any of the active filter tags
-        return article.tags.some(tag => activeTypeFilters[tag]);
     });
 
     // Apply AI Category filters - Project Stage
@@ -576,26 +596,52 @@ function applyFilters() {
 
 function performSearch() {
     applyFilters();
+    updateActiveFilterCount();
 }
 
 function updateActiveFilterCount() {
-    let count = 0;
+    let activeFilters = 0;
 
-    // Count active province filters
-    if (filterMunster.checked) count++;
-    if (filterLeinster.checked) count++;
-    if (filterConnacht.checked) count++;
-    if (filterUlster.checked) count++;
-    if (filterNational.checked) count++;
+    // Count how many filters are LIMITING results (not showing everything)
+    // Province filters - only count if not all are selected
+    const allProvincesChecked = filterMunster.checked && filterLeinster.checked &&
+                                filterConnacht.checked && filterUlster.checked &&
+                                filterNational.checked;
+    if (!allProvincesChecked) {
+        activeFilters++;
+    }
 
-    // Count active type filters
-    if (filterOffshore.checked) count++;
-    if (filterOnshore.checked) count++;
-    if (filterPlanning.checked) count++;
-    if (filterConstruction.checked) count++;
+    // AI Stages - only count if not "All"
+    if (filterAllStages && !filterAllStages.checked) {
+        activeFilters++;
+    }
+
+    // AI Sentiment - only count if not "All"
+    if (filterAllSentiment && !filterAllSentiment.checked) {
+        activeFilters++;
+    }
+
+    // AI Topics - only count if not "All"
+    if (filterAllTopics && !filterAllTopics.checked) {
+        activeFilters++;
+    }
+
+    // AI Urgency - only count if not "All"
+    if (filterAllUrgency && !filterAllUrgency.checked) {
+        activeFilters++;
+    }
+
+    // Search filter
+    if (searchInput && searchInput.value.trim()) {
+        activeFilters++;
+    }
 
     if (activeFilterCount) {
-        activeFilterCount.textContent = `(${count})`;
+        if (activeFilters === 0) {
+            activeFilterCount.textContent = '';
+        } else {
+            activeFilterCount.textContent = `(${activeFilters})`;
+        }
     }
 }
 
@@ -793,14 +839,7 @@ function updateFilterBadges() {
         National: document.getElementById('filterNational').checked
     };
 
-    const typeFilters = {
-        offshore: document.getElementById('filterOffshore').checked,
-        onshore: document.getElementById('filterOnshore').checked,
-        planning: document.getElementById('filterPlanning').checked,
-        construction: document.getElementById('filterConstruction').checked
-    };
-
-    // Count articles by province (considering active type filters)
+    // Count articles by province
     const provinceCounts = {
         Munster: 0,
         Leinster: 0,
@@ -809,29 +848,10 @@ function updateFilterBadges() {
         National: 0
     };
 
-    // Count articles by type (considering active province filters)
-    const typeCounts = {
-        offshore: 0,
-        onshore: 0,
-        planning: 0,
-        construction: 0
-    };
-
     allArticles.forEach(article => {
-        // Count provinces (only if article matches active type filters)
-        const matchesTypeFilter = article.tags.some(tag => typeFilters[tag]);
-        if (matchesTypeFilter && provinceCounts[article.province] !== undefined) {
+        // Count provinces
+        if (provinceCounts[article.province] !== undefined) {
             provinceCounts[article.province]++;
-        }
-
-        // Count types (only if article matches active province filters)
-        const matchesProvinceFilter = provinceFilters[article.province];
-        if (matchesProvinceFilter) {
-            article.tags.forEach(tag => {
-                if (typeCounts[tag] !== undefined) {
-                    typeCounts[tag]++;
-                }
-            });
         }
     });
 
@@ -842,11 +862,104 @@ function updateFilterBadges() {
     document.getElementById('badgeUlster').textContent = provinceCounts.Ulster;
     document.getElementById('badgeNational').textContent = provinceCounts.National;
 
-    // Update type badges
-    document.getElementById('badgeOffshore').textContent = typeCounts.offshore;
-    document.getElementById('badgeOnshore').textContent = typeCounts.onshore;
-    document.getElementById('badgePlanning').textContent = typeCounts.planning;
-    document.getElementById('badgeConstruction').textContent = typeCounts.construction;
+    // Count AI categories
+    const aiStageCounts = {
+        planning: 0,
+        approved: 0,
+        construction: 0,
+        operational: 0,
+        objection: 0
+    };
+
+    const aiSentimentCounts = {
+        positive: 0,
+        neutral: 0,
+        concerns: 0,
+        opposition: 0
+    };
+
+    const aiTopicCounts = {
+        jobs: 0,
+        investment: 0,
+        community: 0,
+        environmental: 0,
+        energy: 0,
+        technology: 0,
+        policy: 0
+    };
+
+    const aiUrgencyCounts = {
+        high: 0,
+        medium: 0,
+        low: 0
+    };
+
+    // Count AI categories across all articles (considering current province filters)
+    allArticles.forEach(article => {
+        // Check if article matches active province filters
+        const matchesProvinceFilter = provinceFilters[article.province];
+
+        if (matchesProvinceFilter && article.aiCategories) {
+            const ai = article.aiCategories;
+
+            // Count project stages
+            if (ai.projectStage && aiStageCounts[ai.projectStage] !== undefined) {
+                aiStageCounts[ai.projectStage]++;
+            }
+
+            // Count sentiment
+            if (ai.sentiment && aiSentimentCounts[ai.sentiment] !== undefined) {
+                aiSentimentCounts[ai.sentiment]++;
+            }
+
+            // Count topics
+            if (ai.keyTopics && Array.isArray(ai.keyTopics)) {
+                ai.keyTopics.forEach(topic => {
+                    if (aiTopicCounts[topic] !== undefined) {
+                        aiTopicCounts[topic]++;
+                    }
+                });
+            }
+
+            // Count urgency
+            if (ai.urgency && aiUrgencyCounts[ai.urgency] !== undefined) {
+                aiUrgencyCounts[ai.urgency]++;
+            }
+        }
+    });
+
+    // Update AI category badges
+    const updateBadge = (id, count) => {
+        const badge = document.getElementById(id);
+        if (badge) badge.textContent = count;
+    };
+
+    // Update project stage badges
+    updateBadge('badgePlanningSt', aiStageCounts.planning);
+    updateBadge('badgeApproved', aiStageCounts.approved);
+    updateBadge('badgeConstructionSt', aiStageCounts.construction);
+    updateBadge('badgeOperational', aiStageCounts.operational);
+    updateBadge('badgeObjection', aiStageCounts.objection);
+
+    // Update sentiment badges
+    updateBadge('badgePositive', aiSentimentCounts.positive);
+    updateBadge('badgeNeutral', aiSentimentCounts.neutral);
+    updateBadge('badgeConcerns', aiSentimentCounts.concerns);
+    updateBadge('badgeOpposition', aiSentimentCounts.opposition);
+
+    // Update topic badges
+    updateBadge('badgeJobs', aiTopicCounts.jobs);
+    updateBadge('badgeInvestment', aiTopicCounts.investment);
+    updateBadge('badgeCommunity', aiTopicCounts.community);
+    updateBadge('badgeEnvironmental', aiTopicCounts.environmental);
+    updateBadge('badgeEnergy', aiTopicCounts.energy);
+    updateBadge('badgeTechnology', aiTopicCounts.technology);
+    updateBadge('badgePolicy', aiTopicCounts.policy);
+
+    // Update urgency badges
+    updateBadge('badgeHighUrgency', aiUrgencyCounts.high);
+    updateBadge('badgeMediumUrgency', aiUrgencyCounts.medium);
+    updateBadge('badgeLowUrgency', aiUrgencyCounts.low);
 }
 
 function animateCounter(element, target) {
@@ -891,6 +1004,21 @@ function switchView(view) {
 /* ========================================
    UI HELPERS
    ======================================== */
+
+function collapseFilterSection(filterElement) {
+    // Find the filter section containing this element
+    const filterSection = filterElement.closest('.filter-section');
+    if (filterSection) {
+        const header = filterSection.querySelector('.filter-section-header');
+        const filterGroup = filterSection.querySelector('.filter-group');
+
+        if (header && filterGroup && !filterGroup.classList.contains('collapsed')) {
+            // Collapse it
+            header.classList.remove('open');
+            filterGroup.classList.add('collapsed');
+        }
+    }
+}
 
 function showLoading(show) {
     loadingState.style.display = show ? 'block' : 'none';

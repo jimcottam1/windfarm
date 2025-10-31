@@ -47,20 +47,36 @@
     <!-- Filters -->
     <section class="filters">
         <div class="container">
-            <button class="filter-toggle" id="filterToggle">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
-                </svg>
-                <span>Filters</span>
-                <span class="active-filter-count" id="activeFilterCount">(9)</span>
-                <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 12 15 18 9"/>
-                </svg>
-            </button>
+            <div class="filter-header">
+                <button class="filter-toggle" id="filterToggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+                    </svg>
+                    <span>Filters</span>
+                    <span class="active-filter-count" id="activeFilterCount"></span>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+                <div class="search-box-inline">
+                    <input type="text" id="searchInput" placeholder="Search articles...">
+                    <button id="searchBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
             <div class="filter-content" id="filterContent">
-            <div class="filter-section">
-                <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">Filter by Province:</h4>
-                <div class="filter-group">
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>📍 Province</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </h4>
+                <div class="filter-group filter-group-horizontal collapsed">
                     <label>
                         <input type="checkbox" id="filterMunster" checked>
                         <span>Munster</span>
@@ -88,189 +104,135 @@
                     </label>
                 </div>
             </div>
-            <div class="filter-section">
-                <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">Filter by Type:</h4>
-                <div class="filter-group">
-                    <label>
-                        <input type="checkbox" id="filterOffshore" checked>
-                        <span>Offshore</span>
-                        <span class="filter-badge" id="badgeOffshore">0</span>
-                    </label>
-                    <label>
-                        <input type="checkbox" id="filterOnshore" checked>
-                        <span>Onshore</span>
-                        <span class="filter-badge" id="badgeOnshore">0</span>
-                    </label>
-                    <label>
-                        <input type="checkbox" id="filterPlanning" checked>
-                        <span>Planning</span>
-                        <span class="filter-badge" id="badgePlanning">0</span>
-                    </label>
-                    <label>
-                        <input type="checkbox" id="filterConstruction" checked>
-                        <span>Construction</span>
-                        <span class="filter-badge" id="badgeConstruction">0</span>
-                    </label>
-                </div>
-            </div>
             <!-- AI Category Filters -->
-            <div class="filter-section">
-                <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">
-                    <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">🤖 AI Categories</span>
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>🤖 Project Stage</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                 </h4>
-                <div class="filter-group">
+                <div class="filter-group filter-group-horizontal collapsed">
                     <label>
                         <input type="checkbox" id="filterAllStages" checked>
-                        <span>All Project Stages</span>
+                        <span>All</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterPlanningSt" data-stage="planning">
                         <span>Planning</span>
                         <span class="filter-badge" id="badgePlanningSt">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterApproved" data-stage="approved">
                         <span>Approved</span>
                         <span class="filter-badge" id="badgeApproved">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterConstructionSt" data-stage="construction">
                         <span>Construction</span>
                         <span class="filter-badge" id="badgeConstructionSt">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterOperational" data-stage="operational">
                         <span>Operational</span>
                         <span class="filter-badge" id="badgeOperational">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterObjection" data-stage="objection">
                         <span>Objection</span>
                         <span class="filter-badge" id="badgeObjection">0</span>
                     </label>
                 </div>
             </div>
-            <div class="filter-section">
-                <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">
-                    <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Sentiment:</span>
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>💭 Sentiment</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                 </h4>
-                <div class="filter-group">
+                <div class="filter-group filter-group-horizontal collapsed">
                     <label>
                         <input type="checkbox" id="filterAllSentiment" checked>
-                        <span>All Sentiment</span>
+                        <span>All</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterPositive" data-sentiment="positive">
-                        <span>😊 Positive</span>
+                        <span>Positive</span>
                         <span class="filter-badge" id="badgePositive">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterNeutral" data-sentiment="neutral">
-                        <span>😐 Neutral</span>
+                        <span>Neutral</span>
                         <span class="filter-badge" id="badgeNeutral">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterConcerns" data-sentiment="concerns">
-                        <span>😟 Concerns</span>
+                        <span>Concerns</span>
                         <span class="filter-badge" id="badgeConcerns">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterOpposition" data-sentiment="opposition">
-                        <span>😠 Opposition</span>
+                        <span>Opposition</span>
                         <span class="filter-badge" id="badgeOpposition">0</span>
                     </label>
                 </div>
             </div>
-            <div class="filter-section">
-                <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">
-                    <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Key Topics:</span>
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>📑 Topics</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                 </h4>
-                <div class="filter-group">
+                <div class="filter-group filter-group-horizontal collapsed">
                     <label>
                         <input type="checkbox" id="filterAllTopics" checked>
-                        <span>All Topics</span>
+                        <span>All</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterJobs" data-topic="jobs">
-                        <span>💼 Jobs</span>
+                        <span>Jobs</span>
                         <span class="filter-badge" id="badgeJobs">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterInvestment" data-topic="investment">
-                        <span>💰 Investment</span>
+                        <span>Investment</span>
                         <span class="filter-badge" id="badgeInvestment">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterCommunity" data-topic="community">
-                        <span>🏘️ Community</span>
+                        <span>Community</span>
                         <span class="filter-badge" id="badgeCommunity">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterEnvironmental" data-topic="environmental">
-                        <span>🌿 Environmental</span>
+                        <span>Environmental</span>
                         <span class="filter-badge" id="badgeEnvironmental">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterEnergy" data-topic="energy">
-                        <span>⚡ Energy</span>
+                        <span>Energy</span>
                         <span class="filter-badge" id="badgeEnergy">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterTechnology" data-topic="technology">
-                        <span>🔧 Technology</span>
+                        <span>Technology</span>
                         <span class="filter-badge" id="badgeTechnology">0</span>
                     </label>
-                    <label style="margin-left: 20px;">
+                    <label>
                         <input type="checkbox" id="filterPolicy" data-topic="policy">
-                        <span>📋 Policy</span>
+                        <span>Policy</span>
                         <span class="filter-badge" id="badgePolicy">0</span>
                     </label>
                 </div>
             </div>
-            <div class="filter-section">
-                <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">
-                    <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 600;">Urgency:</span>
-                </h4>
-                <div class="filter-group">
-                    <label>
-                        <input type="checkbox" id="filterAllUrgency" checked>
-                        <span>All Urgency</span>
-                    </label>
-                    <label style="margin-left: 20px;">
-                        <input type="checkbox" id="filterHighUrgency" data-urgency="high">
-                        <span>🔴 High</span>
-                        <span class="filter-badge" id="badgeHighUrgency">0</span>
-                    </label>
-                    <label style="margin-left: 20px;">
-                        <input type="checkbox" id="filterMediumUrgency" data-urgency="medium">
-                        <span>🟡 Medium</span>
-                        <span class="filter-badge" id="badgeMediumUrgency">0</span>
-                    </label>
-                    <label style="margin-left: 20px;">
-                        <input type="checkbox" id="filterLowUrgency" data-urgency="low">
-                        <span>🟢 Low</span>
-                        <span class="filter-badge" id="badgeLowUrgency">0</span>
-                    </label>
+                <div class="auto-refresh-info">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    </svg>
+                    <span id="autoRefreshStatus">Auto-refresh: Every 15 minutes</span>
                 </div>
-            </div>
-            <div class="filter-section">
-                <h4 style="color: var(--text-color); margin-bottom: 0.5rem; font-size: 0.9rem;">Search:</h4>
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Search news...">
-                    <button id="searchBtn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
-                            <circle cx="11" cy="11" r="8"/>
-                            <path d="M21 21l-4.35-4.35"/>
-                        </svg>
-                        Search
-                    </button>
-                </div>
-            </div>
-            <div class="auto-refresh-info">
-                <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
-                </svg>
-                <span id="autoRefreshStatus">Auto-refresh: Every 15 minutes</span>
             </div>
             </div>
         </div>

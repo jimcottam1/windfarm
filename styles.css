@@ -222,7 +222,7 @@ img {
 }
 
 .filter-toggle {
-    display: flex;
+    display: flex; /* Visible on both desktop and mobile */
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
@@ -304,10 +304,18 @@ img {
 }
 
 .filter-content {
-    display: flex;
+    display: none; /* Hidden by default on desktop too */
     flex-direction: column;
     gap: 0.5rem;
     width: 100%;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.filter-content.open {
+    display: flex;
+    max-height: 2000px;
 }
 
 .filters .container {
@@ -1104,25 +1112,7 @@ img {
         position: static;
     }
 
-    /* Show toggle button on mobile */
-    .filter-toggle {
-        display: flex !important;
-    }
-
-    /* Hide filter content by default on mobile */
-    .filter-content {
-        display: none;
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
-        width: 100%;
-    }
-
-    .filter-content.open {
-        display: flex;
-        max-height: 2000px; /* Large enough for all content */
-        flex-direction: column;
-    }
+    /* Mobile styles - filter toggle already visible from desktop styles */
 
     .filters h4 {
         font-size: 0.8rem !important;

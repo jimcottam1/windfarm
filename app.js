@@ -134,11 +134,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter') performSearch();
     });
 
-    // Filter toggle for mobile
+    // Filter toggle for mobile and desktop
     if (filterToggle) {
         filterToggle.addEventListener('click', function() {
+            const isOpening = !filterToggle.classList.contains('open');
             filterToggle.classList.toggle('open');
             filterContent.classList.toggle('open');
+
+            // When closing filters, collapse all sub-sections
+            if (!isOpening) {
+                document.querySelectorAll('.filter-section-header').forEach(header => {
+                    header.classList.remove('open');
+                    const filterGroup = header.nextElementSibling;
+                    if (filterGroup && filterGroup.classList.contains('filter-group')) {
+                        filterGroup.classList.add('collapsed');
+                    }
+                });
+            }
         });
     }
 
@@ -166,11 +178,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Province filter listeners
-    filterMunster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
-    filterLeinster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
-    filterConnacht.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
-    filterUlster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
-    filterNational.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); });
+    filterMunster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterMunster); });
+    filterLeinster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterLeinster); });
+    filterConnacht.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterConnacht); });
+    filterUlster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterUlster); });
+    filterNational.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterNational); });
 
     // Type filter listeners - REMOVED (now using AI categories)
 
@@ -195,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     filterAllStages.checked = false;
                     applyFilters();
                     updateActiveFilterCount();
+                    collapseFilterSection(filter);
                 });
             }
         });
@@ -221,6 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     filterAllSentiment.checked = false;
                     applyFilters();
                     updateActiveFilterCount();
+                    collapseFilterSection(filter);
                 });
             }
         });
@@ -247,6 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     filterAllTopics.checked = false;
                     applyFilters();
                     updateActiveFilterCount();
+                    collapseFilterSection(filter);
                 });
             }
         });
@@ -273,6 +288,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     filterAllUrgency.checked = false;
                     applyFilters();
                     updateActiveFilterCount();
+                    collapseFilterSection(filter);
                 });
             }
         });

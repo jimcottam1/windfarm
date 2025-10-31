@@ -9,27 +9,36 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 let redis = null;
 let redisType = null;
 
+// Check for traditional Redis URL (Redis Cloud, etc.)
 if (process.env.REDIS_URL) {
-    // Traditional Redis (like Redis Cloud)
-    const Redis = require('ioredis');
-    redis = new Redis(process.env.REDIS_URL, {
-        maxRetriesPerRequest: 3,
-        retryStrategy: (times) => {
-            if (times > 3) return null;
-            return Math.min(times * 50, 2000);
-        }
-    });
-    redisType = 'ioredis';
-    console.log('[Redis] Initialized with REDIS_URL (ioredis)');
-} else if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    // Vercel KV (Upstash)
-    const { createClient } = require('@vercel/kv');
-    redis = createClient({
-        url: process.env.KV_REST_API_URL,
-        token: process.env.KV_REST_API_TOKEN
-    });
-    redisType = 'vercel-kv';
-    console.log('[Redis] Initialized with Vercel KV credentials');
+    try {
+        const Redis = require('ioredis');
+        redis = new Redis(process.env.REDIS_URL, {
+            maxRetriesPerRequest: 3,
+            retryStrategy: (times) => {
+                if (times > 3) return null;
+                return Math.min(times * 50, 2000);
+            }
+        });
+        redisType = 'ioredis';
+        console.log('[Redis] Initialized with REDIS_URL (ioredis)');
+    } catch (error) {
+        console.error('[Redis] Failed to initialize ioredis:', error.message);
+    }
+}
+// Check for Vercel KV credentials
+else if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    try {
+        const { createClient } = require('@vercel/kv');
+        redis = createClient({
+            url: process.env.KV_REST_API_URL,
+            token: process.env.KV_REST_API_TOKEN
+        });
+        redisType = 'vercel-kv';
+        console.log('[Redis] Initialized with Vercel KV credentials');
+    } catch (error) {
+        console.error('[Redis] Failed to initialize Vercel KV:', error.message);
+    }
 } else {
     console.log('[Redis] No Redis connection available - caching disabled');
 }

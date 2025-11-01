@@ -1,4 +1,6 @@
-# Vercel Deployment Guide
+# Vercel Deployment Guide (Hobby Plan)
+
+> **Note**: Vercel Cron Jobs require a Pro plan. This guide uses free alternatives for the Hobby plan.
 
 ## Environment Variables Required
 
@@ -23,11 +25,29 @@ You need to add these environment variables in your Vercel project settings:
 
 ## How It Works
 
-### Vercel Cron Jobs
-The AI categorization now runs automatically every 10 minutes via Vercel Cron:
-- Schedule: `*/10 * * * *` (every 10 minutes)
-- Endpoint: `/api/cron-refresh`
-- Configured in `vercel.json`
+### Automated Cron (Free Options)
+
+Since Vercel Hobby plan doesn't support cron jobs, we use free alternatives:
+
+#### **Option 1: GitHub Actions** (Recommended - Already Set Up!)
+- Free for public repositories
+- Runs every 10 minutes automatically
+- Configured in `.github/workflows/categorize-articles.yml`
+- No additional setup needed - just push to GitHub!
+
+#### **Option 2: Cron-job.org**
+1. Sign up at https://cron-job.org/en/ (free)
+2. Create new cron job:
+   - URL: `https://windfarm-zeta.vercel.app/api/cron-refresh`
+   - Interval: Every 10 minutes
+3. Done!
+
+#### **Option 3: UptimeRobot**
+1. Sign up at https://uptimerobot.com/ (free)
+2. Create HTTP(s) monitor:
+   - URL: `https://windfarm-zeta.vercel.app/api/cron-refresh`
+   - Interval: 5 minutes (minimum)
+3. Done!
 
 ### Batch Processing
 - Processes **40 NEW articles per run** (2 batches of 20)
@@ -93,16 +113,12 @@ showArticles(10)  // View first 10 articles with AI data
 
 ## Adjusting Cron Frequency
 
-Edit `vercel.json` to change frequency:
-```json
-{
-  "crons": [
-    {
-      "path": "/api/cron-refresh",
-      "schedule": "*/15 * * * *"  // Every 15 minutes
-    }
-  ]
-}
+### For GitHub Actions
+Edit `.github/workflows/categorize-articles.yml`:
+```yaml
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Every 15 minutes
 ```
 
 Common schedules:
@@ -110,6 +126,9 @@ Common schedules:
 - `*/15 * * * *` - Every 15 minutes
 - `*/30 * * * *` - Every 30 minutes
 - `0 * * * *` - Every hour
+
+### For Cron-job.org or UptimeRobot
+Simply adjust the interval in their web dashboard.
 
 ## Redis Setup (if needed)
 

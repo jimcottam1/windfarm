@@ -62,7 +62,6 @@ const totalArticles = document.getElementById('totalArticles');
    ======================================== */
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Ireland Wind Farm News initialized');
 
     // Load cached news first if available
     loadCachedNews();
@@ -72,12 +71,10 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const cached = localStorage.getItem('wind_farm_news_cache');
             if (!cached) {
-                console.log('No cached data found, will fetch fresh news');
                 return true;
             }
             const data = JSON.parse(cached);
             const ageMinutes = (Date.now() - data.timestamp) / (1000 * 60);
-            console.log(`Cached data age: ${ageMinutes.toFixed(1)} minutes`);
             return ageMinutes >= CONFIG.REFRESH_INTERVAL;
         } catch (error) {
             console.error('Error checking cache age:', error);
@@ -87,10 +84,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Only load fresh news if cache is stale or missing
     if (shouldFetchFreshNews()) {
-        console.log('Cache is stale or missing, fetching fresh news...');
         loadNews();
     } else {
-        console.log('Using cached data (still fresh)');
         showLoading(false);
         applyFilters();
         updateStats();
@@ -385,7 +380,6 @@ async function loadNews() {
     updateLastRefreshed();
 
     try {
-        console.log('Fetching news from backend API...');
 
         // Fetch from backend API
         const response = await fetch(CONFIG.API_ENDPOINT);
@@ -403,15 +397,7 @@ async function loadNews() {
                 date: new Date(article.date)
             }));
 
-            // Log AI categorization stats (only once on initial load)
-            if (!window.statsLogged) {
-                window.statsLogged = true;
-
-                console.log(`✅ Successfully loaded ${allArticles.length} articles from backend`);
-                console.log(`🕐 Backend last updated: ${new Date(data.lastUpdate).toLocaleTimeString()}`);
-            }
         } else {
-            console.log('No articles found from backend.');
             allArticles = [];
         }
 
@@ -425,7 +411,6 @@ async function loadNews() {
 
     } catch (error) {
         console.error('Error loading news:', error);
-        console.log('Falling back to cached news...');
 
         // Try to load from cache if API fails
         if (allArticles.length === 0) {
@@ -767,111 +752,6 @@ function switchView(view) {
 
     // Update grid class
     newsGrid.className = `news-grid ${view}-view`;
-}
-
-/* ========================================
-   BACKEND LOGS VIEWER
-   ======================================== */
-
-async function fetchBackendLogs() {
-    try {
-        const response = await fetch(`${CONFIG.API_ENDPOINT.replace('/articles', '/logs')}?limit=20`);
-
-        // Check if response is OK and is JSON
-        if (!response.ok) {
-            console.log('ℹ️  Backend logs not available (static deployment)');
-            return;
-        }
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.log('ℹ️  Backend logs not available (static deployment)');
-            return;
-        }
-
-        const data = await response.json();
-
-        if (data.logs && data.logs.length > 0) {
-            console.log(`\n📋 BACKEND ACTIVITY LOG (Last ${data.logs.length} entries):`);
-            console.log('━'.repeat(60));
-
-            data.logs.forEach(log => {
-                const time = new Date(log.timestamp).toLocaleTimeString();
-                const icon = {
-                    'info': 'ℹ️',
-                    'success': '✅',
-                    'error': '❌',
-                    'ai': '🤖'
-                }[log.type] || '📝';
-
-                console.log(`${icon} [${time}] ${log.message}`);
-                if (log.details && Object.keys(log.details).length > 0) {
-                    console.log(`   Details:`, log.details);
-                }
-            });
-            console.log('━'.repeat(60));
-        }
-    } catch (error) {
-        // Silently fail for production environments
-        console.log('ℹ️  Backend logs not available (static deployment)');
-    }
-}
-
-// Make functions available globally for manual calls from console
-window.showBackendLogs = fetchBackendLogs;
-
-window.refreshNews = function() {
-    console.log('🔄 Manually refreshing news...');
-    loadNews();
-};
-
-window.showArticles = function(count = 10) {
-    console.log(`\n📰 Showing ${count} most recent articles:\n`);
-    allArticles.slice(0, count).forEach((article, i) => {
-        console.log(`${i + 1}. ${article.title}`);
-        console.log(`   📍 ${article.province} | 📅 ${article.date.toLocaleDateString()}`);
-        console.log('');
-    });
-};
-
-window.searchArticles = function(keyword) {
-    const results = allArticles.filter(a =>
-        a.title.toLowerCase().includes(keyword.toLowerCase()) ||
-        a.description.toLowerCase().includes(keyword.toLowerCase())
-    );
-    console.log(`\n🔍 Found ${results.length} articles matching "${keyword}":\n`);
-    results.slice(0, 10).forEach((article, i) => {
-        console.log(`${i + 1}. ${article.title}`);
-        console.log(`   ${article.link}\n`);
-    });
-    return results;
-};
-
-// Show help message
-window.showHelp = function() {
-    console.log(`
-╔════════════════════════════════════════════════════════════╗
-║           🤖 Wind Farm News - Console Commands            ║
-╠════════════════════════════════════════════════════════════╣
-║                                                            ║
-║  showBackendLogs()          - Show backend activity logs  ║
-║  showArticles(count)        - Show recent articles        ║
-║  searchArticles("keyword")  - Search articles             ║
-║  refreshNews()              - Manually refresh news       ║
-║  showHelp()                 - Show this help message      ║
-║                                                            ║
-║  Examples:                                                 ║
-║    showArticles(5)          - Show 5 most recent articles ║
-║    searchArticles("wind")   - Find articles about wind    ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
-`);
-};
-
-// Only show help message once on initial load (not on every refresh)
-if (!window.consoleInitialized) {
-    window.consoleInitialized = true;
-    console.log(`\n💡 Type showHelp() for available console commands`);
 }
 
 /* ========================================

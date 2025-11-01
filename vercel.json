@@ -1,5 +1,9 @@
 {
-  "installCommand": "npm install && npm run build",
-  "buildCommand": null,
-  "outputDirectory": "."
+  "buildCommand": "npm run build",
+  "crons": [
+    {
+      "path": "/api/cron-refresh",
+      "schedule": "*/10 * * * *"
+    }
+  ]
 }

@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Trigger AI Categorization
         run: |
-          curl -X GET https://windfarm-zeta.vercel.app/api/cron-refresh \
+          curl -X GET https://windfarm-zeta.vercel.app/api/refresh \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -w "\nHTTP Status: %{http_code}\n"

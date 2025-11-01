@@ -47,35 +47,6 @@ const filterConnacht = document.getElementById('filterConnacht');
 const filterUlster = document.getElementById('filterUlster');
 const filterNational = document.getElementById('filterNational');
 
-// Type filter checkboxes - REMOVED (now using AI categories)
-
-// AI Category filter checkboxes
-const filterAllStages = document.getElementById('filterAllStages');
-const filterPlanningSt = document.getElementById('filterPlanningSt');
-const filterApproved = document.getElementById('filterApproved');
-const filterConstructionSt = document.getElementById('filterConstructionSt');
-const filterOperational = document.getElementById('filterOperational');
-const filterObjection = document.getElementById('filterObjection');
-
-const filterAllSentiment = document.getElementById('filterAllSentiment');
-const filterPositive = document.getElementById('filterPositive');
-const filterNeutral = document.getElementById('filterNeutral');
-const filterConcerns = document.getElementById('filterConcerns');
-const filterOpposition = document.getElementById('filterOpposition');
-
-const filterAllTopics = document.getElementById('filterAllTopics');
-const filterJobs = document.getElementById('filterJobs');
-const filterInvestment = document.getElementById('filterInvestment');
-const filterCommunity = document.getElementById('filterCommunity');
-const filterEnvironmental = document.getElementById('filterEnvironmental');
-const filterEnergy = document.getElementById('filterEnergy');
-const filterTechnology = document.getElementById('filterTechnology');
-const filterPolicy = document.getElementById('filterPolicy');
-
-const filterAllUrgency = document.getElementById('filterAllUrgency');
-const filterHighUrgency = document.getElementById('filterHighUrgency');
-const filterMediumUrgency = document.getElementById('filterMediumUrgency');
-const filterLowUrgency = document.getElementById('filterLowUrgency');
 
 // View buttons
 const viewButtons = document.querySelectorAll('.view-btn');
@@ -438,63 +409,6 @@ async function loadNews() {
 
                 console.log(`✅ Successfully loaded ${allArticles.length} articles from backend`);
                 console.log(`🕐 Backend last updated: ${new Date(data.lastUpdate).toLocaleTimeString()}`);
-
-                const withAI = allArticles.filter(a => a.aiCategories).length;
-                const withoutAI = allArticles.length - withAI;
-                console.log(`\n🤖 AI CATEGORIZATION STATS:`);
-                console.log(`   ✓ Articles with AI categories: ${withAI} (${Math.round(withAI/allArticles.length*100)}%)`);
-                console.log(`   ✗ Articles without AI categories: ${withoutAI} (${Math.round(withoutAI/allArticles.length*100)}%)`);
-
-                // Log sentiment breakdown
-                if (withAI > 0) {
-                    const sentiments = {
-                        positive: 0,
-                        neutral: 0,
-                        concerns: 0,
-                        opposition: 0
-                    };
-                    const stages = {
-                        planning: 0,
-                        approved: 0,
-                        construction: 0,
-                        operational: 0,
-                        objection: 0,
-                        unknown: 0
-                    };
-                    const urgency = {
-                        high: 0,
-                        medium: 0,
-                        low: 0
-                    };
-
-                    allArticles.forEach(a => {
-                        if (a.aiCategories) {
-                            sentiments[a.aiCategories.sentiment] = (sentiments[a.aiCategories.sentiment] || 0) + 1;
-                            stages[a.aiCategories.projectStage] = (stages[a.aiCategories.projectStage] || 0) + 1;
-                            urgency[a.aiCategories.urgency] = (urgency[a.aiCategories.urgency] || 0) + 1;
-                        }
-                    });
-
-                    console.log(`\n📊 SENTIMENT BREAKDOWN:`);
-                    console.log(`   😊 Positive: ${sentiments.positive}`);
-                    console.log(`   😐 Neutral: ${sentiments.neutral}`);
-                    console.log(`   😟 Concerns: ${sentiments.concerns}`);
-                    console.log(`   😠 Opposition: ${sentiments.opposition}`);
-
-                    console.log(`\n🏗️ PROJECT STAGES:`);
-                    console.log(`   📋 Planning: ${stages.planning}`);
-                    console.log(`   ✅ Approved: ${stages.approved}`);
-                    console.log(`   🚧 Construction: ${stages.construction}`);
-                    console.log(`   ⚡ Operational: ${stages.operational}`);
-                    console.log(`   ⚠️ Objection: ${stages.objection}`);
-                    console.log(`   ❓ Unknown: ${stages.unknown}`);
-
-                    console.log(`\n⚡ URGENCY LEVELS:`);
-                    console.log(`   🔴 High: ${urgency.high}`);
-                    console.log(`   🟡 Medium: ${urgency.medium}`);
-                    console.log(`   🟢 Low: ${urgency.low}`);
-                }
-                console.log(''); // Empty line for readability
             }
         } else {
             console.log('No articles found from backend.');
@@ -589,70 +503,6 @@ function applyFilters() {
         return activeProvinceFilters[article.province];
     });
 
-    // Apply AI Category filters - Project Stage
-    if (filterAllStages && !filterAllStages.checked) {
-        const activeStages = [];
-        if (filterPlanningSt && filterPlanningSt.checked) activeStages.push('planning');
-        if (filterApproved && filterApproved.checked) activeStages.push('approved');
-        if (filterConstructionSt && filterConstructionSt.checked) activeStages.push('construction');
-        if (filterOperational && filterOperational.checked) activeStages.push('operational');
-        if (filterObjection && filterObjection.checked) activeStages.push('objection');
-
-        if (activeStages.length > 0) {
-            filtered = filtered.filter(article =>
-                article.aiCategories && activeStages.includes(article.aiCategories.projectStage)
-            );
-        }
-    }
-
-    // Apply AI Category filters - Sentiment
-    if (filterAllSentiment && !filterAllSentiment.checked) {
-        const activeSentiments = [];
-        if (filterPositive && filterPositive.checked) activeSentiments.push('positive');
-        if (filterNeutral && filterNeutral.checked) activeSentiments.push('neutral');
-        if (filterConcerns && filterConcerns.checked) activeSentiments.push('concerns');
-        if (filterOpposition && filterOpposition.checked) activeSentiments.push('opposition');
-
-        if (activeSentiments.length > 0) {
-            filtered = filtered.filter(article =>
-                article.aiCategories && activeSentiments.includes(article.aiCategories.sentiment)
-            );
-        }
-    }
-
-    // Apply AI Category filters - Topics
-    if (filterAllTopics && !filterAllTopics.checked) {
-        const activeTopics = [];
-        if (filterJobs && filterJobs.checked) activeTopics.push('jobs');
-        if (filterInvestment && filterInvestment.checked) activeTopics.push('investment');
-        if (filterCommunity && filterCommunity.checked) activeTopics.push('community');
-        if (filterEnvironmental && filterEnvironmental.checked) activeTopics.push('environmental');
-        if (filterEnergy && filterEnergy.checked) activeTopics.push('energy');
-        if (filterTechnology && filterTechnology.checked) activeTopics.push('technology');
-        if (filterPolicy && filterPolicy.checked) activeTopics.push('policy');
-
-        if (activeTopics.length > 0) {
-            filtered = filtered.filter(article =>
-                article.aiCategories && article.aiCategories.keyTopics &&
-                article.aiCategories.keyTopics.some(topic => activeTopics.includes(topic))
-            );
-        }
-    }
-
-    // Apply AI Category filters - Urgency
-    if (filterAllUrgency && !filterAllUrgency.checked) {
-        const activeUrgency = [];
-        if (filterHighUrgency && filterHighUrgency.checked) activeUrgency.push('high');
-        if (filterMediumUrgency && filterMediumUrgency.checked) activeUrgency.push('medium');
-        if (filterLowUrgency && filterLowUrgency.checked) activeUrgency.push('low');
-
-        if (activeUrgency.length > 0) {
-            filtered = filtered.filter(article =>
-                article.aiCategories && activeUrgency.includes(article.aiCategories.urgency)
-            );
-        }
-    }
-
     // Apply search filter if search text exists
     const searchText = searchInput.value.trim().toLowerCase();
     if (searchText) {
@@ -686,26 +536,6 @@ function updateActiveFilterCount() {
                                 filterConnacht.checked && filterUlster.checked &&
                                 filterNational.checked;
     if (!allProvincesChecked) {
-        activeFilters++;
-    }
-
-    // AI Stages - only count if not "All"
-    if (filterAllStages && !filterAllStages.checked) {
-        activeFilters++;
-    }
-
-    // AI Sentiment - only count if not "All"
-    if (filterAllSentiment && !filterAllSentiment.checked) {
-        activeFilters++;
-    }
-
-    // AI Topics - only count if not "All"
-    if (filterAllTopics && !filterAllTopics.checked) {
-        activeFilters++;
-    }
-
-    // AI Urgency - only count if not "All"
-    if (filterAllUrgency && !filterAllUrgency.checked) {
         activeFilters++;
     }
 
@@ -802,49 +632,9 @@ function createNewsCard(article) {
     const provinceBadge = `<span class="province-badge province-${article.province.toLowerCase()}">${article.province}</span>`;
 
     // Add AI category badges
-    let aiCategoriesHTML = '';
-    let tagsHTML = '';
-
-    if (article.aiCategories) {
-        // Use AI categories if available
-        const ai = article.aiCategories;
-        const categories = [];
-
-        if (ai.projectStage && ai.projectStage !== 'unknown') {
-            categories.push(`<span class="ai-badge stage-${ai.projectStage}">${ai.projectStage}</span>`);
-        }
-
-        if (ai.sentiment) {
-            const sentimentEmoji = {
-                positive: '✓',
-                neutral: '○',
-                concerns: '⚠',
-                opposition: '✕'
-            };
-            categories.push(`<span class="ai-badge sentiment-${ai.sentiment}">${sentimentEmoji[ai.sentiment] || ''} ${ai.sentiment}</span>`);
-        }
-
-        if (ai.keyTopics && ai.keyTopics.length > 0) {
-            ai.keyTopics.slice(0, 3).forEach(topic => {
-                categories.push(`<span class="ai-badge topic">${topic}</span>`);
-            });
-        }
-
-        // Add type tags (offshore/onshore) to AI categories
-        const typeTags = article.tags.filter(tag => tag === 'offshore' || tag === 'onshore');
-        typeTags.forEach(tag => {
-            categories.unshift(`<span class="ai-badge type-${tag}">${tag}</span>`);
-        });
-
-        if (categories.length > 0) {
-            aiCategoriesHTML = `<div class="ai-categories">${categories.join('')}</div>`;
-        }
-    } else {
-        // Fallback to old tags if no AI categories
-        tagsHTML = article.tags.map(tag =>
-            `<span class="tag ${tag}">${tag}</span>`
-        ).join('');
-    }
+    const tagsHTML = article.tags.map(tag =>
+        `<span class="tag ${tag}">${tag}</span>`
+    ).join('');
 
     card.innerHTML = `
         <div class="news-card-image">
@@ -863,7 +653,6 @@ function createNewsCard(article) {
             </div>
             <h3>${article.title}</h3>
             <p class="news-card-description">${article.description || 'No description available.'}</p>
-            ${aiCategoriesHTML}
             <div class="news-card-footer">
                 <span class="news-card-source">${article.source}</span>
                 <a href="${article.url}" target="_blank" class="news-card-link">
@@ -939,105 +728,6 @@ function updateFilterBadges() {
     document.getElementById('badgeConnacht').textContent = provinceCounts.Connacht;
     document.getElementById('badgeUlster').textContent = provinceCounts.Ulster;
     document.getElementById('badgeNational').textContent = provinceCounts.National;
-
-    // Count AI categories
-    const aiStageCounts = {
-        planning: 0,
-        approved: 0,
-        construction: 0,
-        operational: 0,
-        objection: 0
-    };
-
-    const aiSentimentCounts = {
-        positive: 0,
-        neutral: 0,
-        concerns: 0,
-        opposition: 0
-    };
-
-    const aiTopicCounts = {
-        jobs: 0,
-        investment: 0,
-        community: 0,
-        environmental: 0,
-        energy: 0,
-        technology: 0,
-        policy: 0
-    };
-
-    const aiUrgencyCounts = {
-        high: 0,
-        medium: 0,
-        low: 0
-    };
-
-    // Count AI categories across all articles (considering current province filters)
-    allArticles.forEach(article => {
-        // Check if article matches active province filters
-        const matchesProvinceFilter = provinceFilters[article.province];
-
-        if (matchesProvinceFilter && article.aiCategories) {
-            const ai = article.aiCategories;
-
-            // Count project stages
-            if (ai.projectStage && aiStageCounts[ai.projectStage] !== undefined) {
-                aiStageCounts[ai.projectStage]++;
-            }
-
-            // Count sentiment
-            if (ai.sentiment && aiSentimentCounts[ai.sentiment] !== undefined) {
-                aiSentimentCounts[ai.sentiment]++;
-            }
-
-            // Count topics
-            if (ai.keyTopics && Array.isArray(ai.keyTopics)) {
-                ai.keyTopics.forEach(topic => {
-                    if (aiTopicCounts[topic] !== undefined) {
-                        aiTopicCounts[topic]++;
-                    }
-                });
-            }
-
-            // Count urgency
-            if (ai.urgency && aiUrgencyCounts[ai.urgency] !== undefined) {
-                aiUrgencyCounts[ai.urgency]++;
-            }
-        }
-    });
-
-    // Update AI category badges
-    const updateBadge = (id, count) => {
-        const badge = document.getElementById(id);
-        if (badge) badge.textContent = count;
-    };
-
-    // Update project stage badges
-    updateBadge('badgePlanningSt', aiStageCounts.planning);
-    updateBadge('badgeApproved', aiStageCounts.approved);
-    updateBadge('badgeConstructionSt', aiStageCounts.construction);
-    updateBadge('badgeOperational', aiStageCounts.operational);
-    updateBadge('badgeObjection', aiStageCounts.objection);
-
-    // Update sentiment badges
-    updateBadge('badgePositive', aiSentimentCounts.positive);
-    updateBadge('badgeNeutral', aiSentimentCounts.neutral);
-    updateBadge('badgeConcerns', aiSentimentCounts.concerns);
-    updateBadge('badgeOpposition', aiSentimentCounts.opposition);
-
-    // Update topic badges
-    updateBadge('badgeJobs', aiTopicCounts.jobs);
-    updateBadge('badgeInvestment', aiTopicCounts.investment);
-    updateBadge('badgeCommunity', aiTopicCounts.community);
-    updateBadge('badgeEnvironmental', aiTopicCounts.environmental);
-    updateBadge('badgeEnergy', aiTopicCounts.energy);
-    updateBadge('badgeTechnology', aiTopicCounts.technology);
-    updateBadge('badgePolicy', aiTopicCounts.policy);
-
-    // Update urgency badges
-    updateBadge('badgeHighUrgency', aiUrgencyCounts.high);
-    updateBadge('badgeMediumUrgency', aiUrgencyCounts.medium);
-    updateBadge('badgeLowUrgency', aiUrgencyCounts.low);
 }
 
 function animateCounter(element, target) {
@@ -1129,56 +819,6 @@ async function fetchBackendLogs() {
 
 // Make functions available globally for manual calls from console
 window.showBackendLogs = fetchBackendLogs;
-window.showAIStats = function() {
-    const withAI = allArticles.filter(a => a.aiCategories).length;
-    const withoutAI = allArticles.length - withAI;
-
-    console.log(`\n🤖 AI CATEGORIZATION STATS:`);
-    console.log(`   ✓ Articles with AI categories: ${withAI} (${Math.round(withAI/allArticles.length*100)}%)`);
-    console.log(`   ✗ Articles without AI categories: ${withoutAI} (${Math.round(withoutAI/allArticles.length*100)}%)`);
-
-    if (withAI > 0) {
-        const sentiments = {};
-        const stages = {};
-        const urgency = {};
-        const topics = {};
-
-        allArticles.forEach(a => {
-            if (a.aiCategories) {
-                sentiments[a.aiCategories.sentiment] = (sentiments[a.aiCategories.sentiment] || 0) + 1;
-                stages[a.aiCategories.projectStage] = (stages[a.aiCategories.projectStage] || 0) + 1;
-                urgency[a.aiCategories.urgency] = (urgency[a.aiCategories.urgency] || 0) + 1;
-
-                // Count topics
-                if (a.aiCategories.keyTopics) {
-                    a.aiCategories.keyTopics.forEach(topic => {
-                        topics[topic] = (topics[topic] || 0) + 1;
-                    });
-                }
-            }
-        });
-
-        console.log(`\n📊 SENTIMENT:`);
-        Object.entries(sentiments).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
-            console.log(`   ${key}: ${val}`);
-        });
-
-        console.log(`\n🏗️ PROJECT STAGES:`);
-        Object.entries(stages).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
-            console.log(`   ${key}: ${val}`);
-        });
-
-        console.log(`\n📑 TOP TOPICS:`);
-        Object.entries(topics).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
-            console.log(`   ${key}: ${val}`);
-        });
-
-        console.log(`\n⚡ URGENCY:`);
-        Object.entries(urgency).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
-            console.log(`   ${key}: ${val}`);
-        });
-    }
-};
 
 window.refreshNews = function() {
     console.log('🔄 Manually refreshing news...');
@@ -1190,10 +830,6 @@ window.showArticles = function(count = 10) {
     allArticles.slice(0, count).forEach((article, i) => {
         console.log(`${i + 1}. ${article.title}`);
         console.log(`   📍 ${article.province} | 📅 ${article.date.toLocaleDateString()}`);
-        if (article.aiCategories) {
-            console.log(`   🤖 ${article.aiCategories.sentiment} | ${article.aiCategories.projectStage} | ${article.aiCategories.urgency} urgency`);
-            console.log(`   📑 Topics: ${article.aiCategories.keyTopics.join(', ')}`);
-        }
         console.log('');
     });
 };
@@ -1219,7 +855,6 @@ window.showHelp = function() {
 ╠════════════════════════════════════════════════════════════╣
 ║                                                            ║
 ║  showBackendLogs()          - Show backend activity logs  ║
-║  showAIStats()              - Show AI categorization stats║
 ║  showArticles(count)        - Show recent articles        ║
 ║  searchArticles("keyword")  - Search articles             ║
 ║  refreshNews()              - Manually refresh news       ║

@@ -308,131 +308,113 @@ function getPlaceholderImage(title, description) {
     }
 }
 
-// Fetch articles from Google News RSS
-async function fetchGoogleNews() {
+// Fetch a single RSS feed with timeout
+async function fetchSingleFeed(rssUrl, timeout = 3000) {
     const articles = [];
-    const processedUrls = new Set();
 
     try {
-        for (const rssUrl of CONFIG.GOOGLE_NEWS_FEEDS) {
-            try {
-                const response = await fetch(rssUrl);
-                const xmlText = await response.text();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-                // Parse XML
-                const parser = new xml2js.Parser();
-                const result = await parser.parseStringPromise(xmlText);
+        const response = await fetch(rssUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
 
-                if (result.rss && result.rss.channel && result.rss.channel[0].item) {
-                    const items = result.rss.channel[0].item;
+        const xmlText = await response.text();
+        const parser = new xml2js.Parser();
+        const result = await parser.parseStringPromise(xmlText);
 
-                    // Get channel title for use as fallback source
-                    const channelTitle = result.rss.channel[0].title && result.rss.channel[0].title[0]
-                        ? result.rss.channel[0].title[0]
-                        : null;
+        if (result.rss && result.rss.channel && result.rss.channel[0].item) {
+            const items = result.rss.channel[0].item;
+            const channelTitle = result.rss.channel[0].title?.[0] || null;
 
-                    // Determine default source based on URL
-                    let defaultSource = 'Google News';
-                    let isLocalSource = false;
-                    if (rssUrl.includes('limerickpost.ie')) {
-                        defaultSource = 'Limerick Post';
-                        isLocalSource = true;
-                    } else if (rssUrl.includes('limerickleader.ie')) {
-                        defaultSource = 'Limerick Leader';
-                        isLocalSource = true;
-                    } else if (rssUrl.includes('clareecho.ie')) {
-                        defaultSource = 'Clare Echo';
-                        isLocalSource = true;
-                    } else if (rssUrl.includes('corkbeo.ie')) {
-                        defaultSource = 'Cork Beo';
-                        isLocalSource = true;
-                    } else if (channelTitle) {
-                        defaultSource = channelTitle;
-                    }
-
-                    for (const item of items) {
-                        const title = item.title ? item.title[0] : '';
-                        const link = item.link ? item.link[0] : '#';
-                        const pubDate = item.pubDate ? item.pubDate[0] : new Date().toISOString();
-                        const description = item.description ? item.description[0] : '';
-                        const source = item.source && item.source[0]._ ? item.source[0]._ : defaultSource;
-
-                        // Filter local news sources by energy keywords
-                        // Google News articles are already filtered by their search queries
-                        if (isLocalSource) {
-                            const articleText = title + ' ' + stripHTML(description);
-                            if (!matchesEnergyKeywords(articleText)) {
-                                continue; // Skip articles that don't match energy keywords
-                            }
-                        }
-
-                        // Extract image from description or use placeholder
-                        let image = null;
-                        const imgMatch = description.match(/<img[^>]+src="([^">]+)"/i);
-                        if (imgMatch) {
-                            image = imgMatch[1];
-                        } else {
-                            image = getPlaceholderImage(title, description);
-                        }
-
-                        if (!processedUrls.has(link) && title) {
-                            processedUrls.add(link);
-
-                            articles.push({
-                                title: title,
-                                description: stripHTML(description).substring(0, 200) + '...',
-                                source: source,
-                                date: new Date(pubDate).toISOString(),
-                                url: link,
-                                image: image,
-                                tags: categorizeTags(title + ' ' + description),
-                                category: categorizeArticle(title + ' ' + description),
-                                province: categorizeProvince(title + ' ' + description)
-                            });
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error(`Error fetching RSS feed:`, error.message);
+            // Determine default source based on URL
+            let defaultSource = 'Google News';
+            let isLocalSource = false;
+            if (rssUrl.includes('limerickpost.ie')) {
+                defaultSource = 'Limerick Post';
+                isLocalSource = true;
+            } else if (rssUrl.includes('limerickleader.ie')) {
+                defaultSource = 'Limerick Leader';
+                isLocalSource = true;
+            } else if (rssUrl.includes('clareecho.ie')) {
+                defaultSource = 'Clare Echo';
+                isLocalSource = true;
+            } else if (rssUrl.includes('corkbeo.ie')) {
+                defaultSource = 'Cork Beo';
+                isLocalSource = true;
+            } else if (channelTitle) {
+                defaultSource = channelTitle;
             }
 
-            // Small delay between feeds
-            await new Promise(resolve => setTimeout(resolve, 300));
-        }
+            for (const item of items) {
+                const title = item.title?.[0] || '';
+                const link = item.link?.[0] || '#';
+                const pubDate = item.pubDate?.[0] || new Date().toISOString();
+                const description = item.description?.[0] || '';
+                const source = item.source?.[0]?._ || defaultSource;
 
-        // Remove duplicates based on title
+                // Filter local news sources by energy keywords
+                if (isLocalSource) {
+                    const articleText = title + ' ' + stripHTML(description);
+                    if (!matchesEnergyKeywords(articleText)) {
+                        continue;
+                    }
+                }
+
+                // Extract image from description or use placeholder
+                let image = null;
+                const imgMatch = description.match(/<img[^>]+src="([^">]+)"/i);
+                if (imgMatch) {
+                    image = imgMatch[1];
+                } else {
+                    image = getPlaceholderImage(title, description);
+                }
+
+                if (title) {
+                    articles.push({
+                        title: title,
+                        description: stripHTML(description).substring(0, 200) + '...',
+                        source: source,
+                        date: new Date(pubDate).toISOString(),
+                        url: link,
+                        image: image,
+                        tags: categorizeTags(title + ' ' + description),
+                        category: categorizeArticle(title + ' ' + description),
+                        province: categorizeProvince(title + ' ' + description)
+                    });
+                }
+            }
+        }
+    } catch (error) {
+        // Silently fail individual feeds
+    }
+
+    return articles;
+}
+
+// Fetch articles from Google News RSS (parallel fetching)
+async function fetchGoogleNews() {
+    try {
+        // Fetch all feeds in parallel with 3-second timeout per feed
+        const feedPromises = CONFIG.GOOGLE_NEWS_FEEDS.map(url => fetchSingleFeed(url, 3000));
+        const feedResults = await Promise.all(feedPromises);
+
+        // Flatten all articles from all feeds
+        const allArticles = feedResults.flat();
+
+        // Remove duplicates based on URL
         const seen = new Set();
-        const uniqueArticles = articles.filter(article => {
-            const key = article.title.toLowerCase();
-            if (seen.has(key)) return false;
-            seen.add(key);
+        const uniqueArticles = allArticles.filter(article => {
+            if (seen.has(article.url)) return false;
+            seen.add(article.url);
             return true;
         });
 
         // Sort by date (newest first)
-        uniqueArticles.sort((a, b) => {
-            return new Date(b.date) - new Date(a.date);
-        });
+        uniqueArticles.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // Limit to 400 articles
-        const limitedArticles = uniqueArticles.slice(0, 400);
-
-        // Fetch real images for articles with placeholder images (limit to first 30 to avoid timeout)
-        const articlesToEnhance = limitedArticles.slice(0, 30);
-
-        for (const article of articlesToEnhance) {
-            // Check if using placeholder (Unsplash URL)
-            if (article.image && article.image.includes('unsplash.com')) {
-                const realImage = await fetchArticleImage(article.url);
-                if (realImage) {
-                    article.image = realImage;
-                }
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-        }
-
-        return limitedArticles;
+        return uniqueArticles.slice(0, 400);
     } catch (error) {
         console.error('Error in fetchGoogleNews:', error);
         throw error;
@@ -455,27 +437,38 @@ module.exports = async (req, res) => {
     try {
         // Parse query parameters for filtering
         const filters = {
-            province: req.query.province, // Munster|Leinster|Connacht|Ulster|National
-            category: req.query.category, // offshore|onshore
-            tag: req.query.tag // offshore|onshore|planning|construction
+            province: req.query.province,
+            category: req.query.category,
+            tag: req.query.tag
         };
+
+        // Check for force refresh parameter
+        const forceRefresh = req.query.refresh === 'true';
 
         // 1. Load cached articles from Redis
         const cachedArticles = await loadCache();
 
-        // 2. Fetch fresh articles from RSS feeds
-        const newArticles = await fetchGoogleNews();
+        let finalArticles = [];
+        let fromCache = false;
 
-        // 3. Merge cached and new articles (deduplicate, keep last 7 days)
-        const mergedArticles = mergeArticles(newArticles, cachedArticles);
+        // If we have cached articles and not forcing refresh, use cache
+        if (cachedArticles.length > 0 && !forceRefresh) {
+            finalArticles = cachedArticles;
+            fromCache = true;
+        } else {
+            // Fetch fresh articles only if cache is empty or refresh requested
+            const newArticles = await fetchGoogleNews();
 
-        // 4. Sort by date (newest first)
-        mergedArticles.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // Merge with any cached articles and deduplicate
+            const mergedArticles = mergeArticles(newArticles, cachedArticles);
+            mergedArticles.sort((a, b) => new Date(b.date) - new Date(a.date));
+            finalArticles = mergedArticles.slice(0, 400);
 
-        // 5. Limit to 400 articles
-        let finalArticles = mergedArticles.slice(0, 400);
+            // Save to cache for next request
+            await saveCache(finalArticles);
+        }
 
-        // 6. Apply filters if any are specified
+        // 2. Apply filters if any are specified
         let filteredArticles = finalArticles;
         let filterApplied = false;
 
@@ -494,20 +487,15 @@ module.exports = async (req, res) => {
             filterApplied = true;
         }
 
-        // 7. Save to Redis cache
-        await saveCache(finalArticles);
-
-        // 8. Build and return response
-        const now = new Date();
+        // 3. Build and return response
         const buildInfo = getBuildInfo();
 
         const response = {
             articles: filteredArticles,
-            lastUpdate: now.toISOString(),
+            lastUpdate: new Date().toISOString(),
             count: filteredArticles.length,
             totalArticles: finalArticles.length,
-            cached: cachedArticles.length,
-            fresh: newArticles.length,
+            fromCache: fromCache,
             filtersApplied: filterApplied ? filters : null,
             version: {
                 version: version,

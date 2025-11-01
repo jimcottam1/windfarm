@@ -13,6 +13,24 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Activity log for frontend to consume
+const activityLog = [];
+const MAX_LOG_ENTRIES = 100;
+
+function logActivity(type, message, details = {}) {
+    const entry = {
+        timestamp: new Date().toISOString(),
+        type, // 'info', 'success', 'error', 'ai'
+        message,
+        details
+    };
+    activityLog.unshift(entry); // Add to beginning
+    if (activityLog.length > MAX_LOG_ENTRIES) {
+        activityLog.pop(); // Remove oldest
+    }
+    console.log(`[${type.toUpperCase()}] ${message}`);
+}
+
 // Get git commit info for build tracking
 function getGitInfo() {
     try {
@@ -525,7 +543,7 @@ async function fetchGoogleNews() {
 
         // Batch process AI categorization (40 articles at once for efficiency)
         // Only categorize NEW articles that don't already have AI categories
-        console.log('Starting AI categorization...');
+        logActivity('ai', 'Starting AI categorization...');
         const BATCH_SIZE = 40;
 
         // Filter out articles that already have AI categories
@@ -536,11 +554,11 @@ async function fetchGoogleNews() {
         let categorizedCount = 0;
 
         if (alreadyCategorized > 0) {
-            console.log(`Found ${alreadyCategorized} articles with existing AI categories (skipping)`);
+            logActivity('info', `Found ${alreadyCategorized} articles with existing AI categories (skipping)`);
         }
 
         if (geminiModel && articlesToCategorize.length > 0) {
-            console.log(`Processing ${articlesToCategorize.length} NEW articles in a single batch...`);
+            logActivity('ai', `Processing ${articlesToCategorize.length} NEW articles in a single batch...`);
 
             const aiCategoriesArray = await categorizeArticlesWithAI(articlesToCategorize);
 
@@ -559,7 +577,10 @@ async function fetchGoogleNews() {
                         console.log(`  ✓ Article ${categoryData.index}: Stage=${categoryData.projectStage}, Sentiment=${categoryData.sentiment}, Topics=[${categoryData.keyTopics.join(', ')}], Urgency=${categoryData.urgency}`);
                     }
                 });
-                console.log(`Successfully categorized ${categorizedCount}/${articlesToCategorize.length} NEW articles`);
+                logActivity('success', `Successfully categorized ${categorizedCount}/${articlesToCategorize.length} NEW articles`, {
+                    total: articlesToCategorize.length,
+                    successful: categorizedCount
+                });
             } else {
                 console.log('  ✗ Batch categorization returned no results');
             }
@@ -633,6 +654,15 @@ app.get('/api/health', (req, res) => {
 // Version endpoint
 app.get('/api/version', (req, res) => {
     res.json(BUILD_INFO);
+});
+
+// Activity logs endpoint
+app.get('/api/logs', (req, res) => {
+    const limit = parseInt(req.query.limit) || 50;
+    res.json({
+        logs: activityLog.slice(0, limit),
+        total: activityLog.length
+    });
 });
 
 // Serve index.html for root

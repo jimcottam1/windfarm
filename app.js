@@ -432,8 +432,69 @@ async function loadNews() {
                 date: new Date(article.date)
             }));
 
-            console.log(`Successfully loaded ${allArticles.length} articles from backend`);
-            console.log(`Backend last updated: ${new Date(data.lastUpdate).toLocaleTimeString()}`);
+            console.log(`✅ Successfully loaded ${allArticles.length} articles from backend`);
+            console.log(`🕐 Backend last updated: ${new Date(data.lastUpdate).toLocaleTimeString()}`);
+
+            // Log AI categorization stats
+            const withAI = allArticles.filter(a => a.aiCategories).length;
+            const withoutAI = allArticles.length - withAI;
+            console.log(`\n🤖 AI CATEGORIZATION STATS:`);
+            console.log(`   ✓ Articles with AI categories: ${withAI} (${Math.round(withAI/allArticles.length*100)}%)`);
+            console.log(`   ✗ Articles without AI categories: ${withoutAI} (${Math.round(withoutAI/allArticles.length*100)}%)`);
+
+            // Log sentiment breakdown
+            if (withAI > 0) {
+                const sentiments = {
+                    positive: 0,
+                    neutral: 0,
+                    concerns: 0,
+                    opposition: 0
+                };
+                const stages = {
+                    planning: 0,
+                    approved: 0,
+                    construction: 0,
+                    operational: 0,
+                    objection: 0,
+                    unknown: 0
+                };
+                const urgency = {
+                    high: 0,
+                    medium: 0,
+                    low: 0
+                };
+
+                allArticles.forEach(a => {
+                    if (a.aiCategories) {
+                        sentiments[a.aiCategories.sentiment] = (sentiments[a.aiCategories.sentiment] || 0) + 1;
+                        stages[a.aiCategories.projectStage] = (stages[a.aiCategories.projectStage] || 0) + 1;
+                        urgency[a.aiCategories.urgency] = (urgency[a.aiCategories.urgency] || 0) + 1;
+                    }
+                });
+
+                console.log(`\n📊 SENTIMENT BREAKDOWN:`);
+                console.log(`   😊 Positive: ${sentiments.positive}`);
+                console.log(`   😐 Neutral: ${sentiments.neutral}`);
+                console.log(`   😟 Concerns: ${sentiments.concerns}`);
+                console.log(`   😠 Opposition: ${sentiments.opposition}`);
+
+                console.log(`\n🏗️ PROJECT STAGES:`);
+                console.log(`   📋 Planning: ${stages.planning}`);
+                console.log(`   ✅ Approved: ${stages.approved}`);
+                console.log(`   🚧 Construction: ${stages.construction}`);
+                console.log(`   ⚡ Operational: ${stages.operational}`);
+                console.log(`   ⚠️ Objection: ${stages.objection}`);
+                console.log(`   ❓ Unknown: ${stages.unknown}`);
+
+                console.log(`\n⚡ URGENCY LEVELS:`);
+                console.log(`   🔴 High: ${urgency.high}`);
+                console.log(`   🟡 Medium: ${urgency.medium}`);
+                console.log(`   🟢 Low: ${urgency.low}`);
+            }
+            console.log(''); // Empty line for readability
+
+            // Fetch and display backend logs
+            fetchBackendLogs();
         } else {
             console.log('No articles found from backend.');
             allArticles = [];
@@ -1016,6 +1077,148 @@ function switchView(view) {
     // Update grid class
     newsGrid.className = `news-grid ${view}-view`;
 }
+
+/* ========================================
+   BACKEND LOGS VIEWER
+   ======================================== */
+
+async function fetchBackendLogs() {
+    try {
+        const response = await fetch(`${CONFIG.API_ENDPOINT.replace('/articles', '/logs')}?limit=20`);
+        const data = await response.json();
+
+        if (data.logs && data.logs.length > 0) {
+            console.log(`\n📋 BACKEND ACTIVITY LOG (Last ${data.logs.length} entries):`);
+            console.log('━'.repeat(60));
+
+            data.logs.forEach(log => {
+                const time = new Date(log.timestamp).toLocaleTimeString();
+                const icon = {
+                    'info': 'ℹ️',
+                    'success': '✅',
+                    'error': '❌',
+                    'ai': '🤖'
+                }[log.type] || '📝';
+
+                console.log(`${icon} [${time}] ${log.message}`);
+                if (log.details && Object.keys(log.details).length > 0) {
+                    console.log(`   Details:`, log.details);
+                }
+            });
+            console.log('━'.repeat(60));
+        }
+    } catch (error) {
+        console.log('Could not fetch backend logs:', error.message);
+    }
+}
+
+// Make functions available globally for manual calls from console
+window.showBackendLogs = fetchBackendLogs;
+window.showAIStats = function() {
+    const withAI = allArticles.filter(a => a.aiCategories).length;
+    const withoutAI = allArticles.length - withAI;
+
+    console.log(`\n🤖 AI CATEGORIZATION STATS:`);
+    console.log(`   ✓ Articles with AI categories: ${withAI} (${Math.round(withAI/allArticles.length*100)}%)`);
+    console.log(`   ✗ Articles without AI categories: ${withoutAI} (${Math.round(withoutAI/allArticles.length*100)}%)`);
+
+    if (withAI > 0) {
+        const sentiments = {};
+        const stages = {};
+        const urgency = {};
+        const topics = {};
+
+        allArticles.forEach(a => {
+            if (a.aiCategories) {
+                sentiments[a.aiCategories.sentiment] = (sentiments[a.aiCategories.sentiment] || 0) + 1;
+                stages[a.aiCategories.projectStage] = (stages[a.aiCategories.projectStage] || 0) + 1;
+                urgency[a.aiCategories.urgency] = (urgency[a.aiCategories.urgency] || 0) + 1;
+
+                // Count topics
+                if (a.aiCategories.keyTopics) {
+                    a.aiCategories.keyTopics.forEach(topic => {
+                        topics[topic] = (topics[topic] || 0) + 1;
+                    });
+                }
+            }
+        });
+
+        console.log(`\n📊 SENTIMENT:`);
+        Object.entries(sentiments).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
+            console.log(`   ${key}: ${val}`);
+        });
+
+        console.log(`\n🏗️ PROJECT STAGES:`);
+        Object.entries(stages).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
+            console.log(`   ${key}: ${val}`);
+        });
+
+        console.log(`\n📑 TOP TOPICS:`);
+        Object.entries(topics).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
+            console.log(`   ${key}: ${val}`);
+        });
+
+        console.log(`\n⚡ URGENCY:`);
+        Object.entries(urgency).sort((a, b) => b[1] - a[1]).forEach(([key, val]) => {
+            console.log(`   ${key}: ${val}`);
+        });
+    }
+};
+
+window.refreshNews = function() {
+    console.log('🔄 Manually refreshing news...');
+    loadNews();
+};
+
+window.showArticles = function(count = 10) {
+    console.log(`\n📰 Showing ${count} most recent articles:\n`);
+    allArticles.slice(0, count).forEach((article, i) => {
+        console.log(`${i + 1}. ${article.title}`);
+        console.log(`   📍 ${article.province} | 📅 ${article.date.toLocaleDateString()}`);
+        if (article.aiCategories) {
+            console.log(`   🤖 ${article.aiCategories.sentiment} | ${article.aiCategories.projectStage} | ${article.aiCategories.urgency} urgency`);
+            console.log(`   📑 Topics: ${article.aiCategories.keyTopics.join(', ')}`);
+        }
+        console.log('');
+    });
+};
+
+window.searchArticles = function(keyword) {
+    const results = allArticles.filter(a =>
+        a.title.toLowerCase().includes(keyword.toLowerCase()) ||
+        a.description.toLowerCase().includes(keyword.toLowerCase())
+    );
+    console.log(`\n🔍 Found ${results.length} articles matching "${keyword}":\n`);
+    results.slice(0, 10).forEach((article, i) => {
+        console.log(`${i + 1}. ${article.title}`);
+        console.log(`   ${article.link}\n`);
+    });
+    return results;
+};
+
+// Show help message
+window.showHelp = function() {
+    console.log(`
+╔════════════════════════════════════════════════════════════╗
+║           🤖 Wind Farm News - Console Commands            ║
+╠════════════════════════════════════════════════════════════╣
+║                                                            ║
+║  showBackendLogs()          - Show backend activity logs  ║
+║  showAIStats()              - Show AI categorization stats║
+║  showArticles(count)        - Show recent articles        ║
+║  searchArticles("keyword")  - Search articles             ║
+║  refreshNews()              - Manually refresh news       ║
+║  showHelp()                 - Show this help message      ║
+║                                                            ║
+║  Examples:                                                 ║
+║    showArticles(5)          - Show 5 most recent articles ║
+║    searchArticles("wind")   - Find articles about wind    ║
+║                                                            ║
+╚════════════════════════════════════════════════════════════╝
+`);
+};
+
+console.log(`\n💡 Type showHelp() for available console commands`);
 
 /* ========================================
    UI HELPERS

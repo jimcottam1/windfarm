@@ -1086,6 +1086,19 @@ function switchView(view) {
 async function fetchBackendLogs() {
     try {
         const response = await fetch(`${CONFIG.API_ENDPOINT.replace('/articles', '/logs')}?limit=20`);
+
+        // Check if response is OK and is JSON
+        if (!response.ok) {
+            console.log('ℹ️  Backend logs not available (static deployment)');
+            return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.log('ℹ️  Backend logs not available (static deployment)');
+            return;
+        }
+
         const data = await response.json();
 
         if (data.logs && data.logs.length > 0) {
@@ -1109,7 +1122,8 @@ async function fetchBackendLogs() {
             console.log('━'.repeat(60));
         }
     } catch (error) {
-        console.log('Could not fetch backend logs:', error.message);
+        // Silently fail for production environments
+        console.log('ℹ️  Backend logs not available (static deployment)');
     }
 }
 

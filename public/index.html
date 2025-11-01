@@ -3,16 +3,387 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ireland Wind Farm News API</title>
+    <title>Ireland Wind Farm News - Live Updates</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <h1>Ireland Wind Farm News API</h1>
-    <p>This is a backend API service. Available endpoints:</p>
-    <ul>
-        <li><a href="/api/articles">/api/articles</a> - Get news articles</li>
-        <li><a href="/api/health">/api/health</a> - Health check</li>
-        <li><a href="/api/version">/api/version</a> - API version info</li>
-        <li>/api/refresh - Refresh article cache (requires authentication)</li>
-    </ul>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <svg class="wind-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+                    </svg>
+                    <h1>Ireland Wind Farm News</h1>
+                </div>
+                <div class="last-updated">
+                    <span id="lastUpdated">Loading...</span>
+                </div>
+            </div>
+            <p class="subtitle">Live updates on wind energy developments across Ireland</p>
+        </div>
+    </header>
+
+    <!-- Limerick News Ticker -->
+    <div class="news-ticker-wrapper">
+        <div class="ticker-label">
+            <svg class="ticker-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span>Limerick News</span>
+        </div>
+        <div class="news-ticker">
+            <div class="ticker-content" id="tickerContent">
+                <span>Loading Limerick wind farm news...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <section class="filters">
+        <div class="container">
+            <div class="filter-header">
+                <button class="filter-toggle" id="filterToggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>
+                    </svg>
+                    <span>Filters</span>
+                    <span class="active-filter-count" id="activeFilterCount"></span>
+                    <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+                <div class="search-box-inline">
+                    <input type="text" id="searchInput" placeholder="Search articles...">
+                    <button id="searchBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="filter-content" id="filterContent">
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>📍 Province</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </h4>
+                <div class="filter-group filter-group-horizontal collapsed">
+                    <label>
+                        <input type="checkbox" id="filterMunster" checked>
+                        <span>Munster</span>
+                        <span class="filter-badge" id="badgeMunster">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterLeinster" checked>
+                        <span>Leinster</span>
+                        <span class="filter-badge" id="badgeLeinster">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterConnacht" checked>
+                        <span>Connacht</span>
+                        <span class="filter-badge" id="badgeConnacht">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterUlster" checked>
+                        <span>Ulster</span>
+                        <span class="filter-badge" id="badgeUlster">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterNational" checked>
+                        <span>National</span>
+                        <span class="filter-badge" id="badgeNational">0</span>
+                    </label>
+                </div>
+            </div>
+            <!-- AI Category Filters -->
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>🤖 Project Stage</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </h4>
+                <div class="filter-group filter-group-horizontal collapsed">
+                    <label>
+                        <input type="checkbox" id="filterAllStages" checked>
+                        <span>All</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterPlanningSt" data-stage="planning">
+                        <span>Planning</span>
+                        <span class="filter-badge" id="badgePlanningSt">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterApproved" data-stage="approved">
+                        <span>Approved</span>
+                        <span class="filter-badge" id="badgeApproved">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterConstructionSt" data-stage="construction">
+                        <span>Construction</span>
+                        <span class="filter-badge" id="badgeConstructionSt">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterOperational" data-stage="operational">
+                        <span>Operational</span>
+                        <span class="filter-badge" id="badgeOperational">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterObjection" data-stage="objection">
+                        <span>Objection</span>
+                        <span class="filter-badge" id="badgeObjection">0</span>
+                    </label>
+                </div>
+            </div>
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>💭 Sentiment</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </h4>
+                <div class="filter-group filter-group-horizontal collapsed">
+                    <label>
+                        <input type="checkbox" id="filterAllSentiment" checked>
+                        <span>All</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterPositive" data-sentiment="positive">
+                        <span>Positive</span>
+                        <span class="filter-badge" id="badgePositive">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterNeutral" data-sentiment="neutral">
+                        <span>Neutral</span>
+                        <span class="filter-badge" id="badgeNeutral">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterConcerns" data-sentiment="concerns">
+                        <span>Concerns</span>
+                        <span class="filter-badge" id="badgeConcerns">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterOpposition" data-sentiment="opposition">
+                        <span>Opposition</span>
+                        <span class="filter-badge" id="badgeOpposition">0</span>
+                    </label>
+                </div>
+            </div>
+            <div class="filter-section collapsible">
+                <h4 class="filter-section-header">
+                    <span>📑 Topics</span>
+                    <svg class="collapse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </h4>
+                <div class="filter-group filter-group-horizontal collapsed">
+                    <label>
+                        <input type="checkbox" id="filterAllTopics" checked>
+                        <span>All</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterJobs" data-topic="jobs">
+                        <span>Jobs</span>
+                        <span class="filter-badge" id="badgeJobs">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterInvestment" data-topic="investment">
+                        <span>Investment</span>
+                        <span class="filter-badge" id="badgeInvestment">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterCommunity" data-topic="community">
+                        <span>Community</span>
+                        <span class="filter-badge" id="badgeCommunity">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterEnvironmental" data-topic="environmental">
+                        <span>Environmental</span>
+                        <span class="filter-badge" id="badgeEnvironmental">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterEnergy" data-topic="energy">
+                        <span>Energy</span>
+                        <span class="filter-badge" id="badgeEnergy">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterTechnology" data-topic="technology">
+                        <span>Technology</span>
+                        <span class="filter-badge" id="badgeTechnology">0</span>
+                    </label>
+                    <label>
+                        <input type="checkbox" id="filterPolicy" data-topic="policy">
+                        <span>Policy</span>
+                        <span class="filter-badge" id="badgePolicy">0</span>
+                    </label>
+                </div>
+            </div>
+                <div class="auto-refresh-info">
+                    <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                    </svg>
+                    <span id="autoRefreshStatus">Auto-refresh: Every 15 minutes</span>
+                </div>
+            </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Dashboard -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon offshore">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 18h18M3 18v-6l9-9 9 9v6"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="offshoreCount">-</h3>
+                        <p>Offshore Projects</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon onshore">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 8l4-4m0 0l-4-4m4 4H3m18 12l-4 4m0 0l-4-4m4 4H3"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="onshoreCount">-</h3>
+                        <p>Onshore Projects</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon planning">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4"/>
+                            <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="planningCount">-</h3>
+                        <p>In Planning</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon articles">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                        </svg>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="totalArticles">0</h3>
+                        <p>Total Articles</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- News Feed -->
+    <section class="news-feed">
+        <div class="container">
+            <div class="feed-header">
+                <h2>Latest Developments</h2>
+                <div class="view-options">
+                    <button class="view-btn active" data-view="list">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="8" y1="6" x2="21" y2="6"/>
+                            <line x1="8" y1="12" x2="21" y2="12"/>
+                            <line x1="8" y1="18" x2="21" y2="18"/>
+                            <line x1="3" y1="6" x2="3.01" y2="6"/>
+                            <line x1="3" y1="12" x2="3.01" y2="12"/>
+                            <line x1="3" y1="18" x2="3.01" y2="18"/>
+                        </svg>
+                    </button>
+                    <button class="view-btn" data-view="grid">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/>
+                            <rect x="14" y="3" width="7" height="7"/>
+                            <rect x="14" y="14" width="7" height="7"/>
+                            <rect x="3" y="14" width="7" height="7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="loading">
+                <div class="spinner"></div>
+                <p>Loading wind farm news from Ireland...</p>
+            </div>
+
+            <!-- News Grid -->
+            <div id="newsGrid" class="news-grid list-view">
+                <!-- News items will be inserted here by JavaScript -->
+            </div>
+
+            <!-- Load More Button -->
+            <div id="loadMoreContainer" class="load-more-container" style="display: none;">
+                <button id="loadMoreBtn" class="load-more-btn">
+                    <span id="loadMoreText">Load 30 More Articles</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M19 12l-7 7-7-7"/>
+                    </svg>
+                </button>
+                <p class="load-more-info">
+                    Showing <span id="articlesShown">30</span> of <span id="articlesTotal">0</span> articles
+                </p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <h3>No articles found</h3>
+                <p>Try adjusting your filters or search terms</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- News Sources Info -->
+    <section class="sources">
+        <div class="container">
+            <h3>News Source</h3>
+            <div class="source-list">
+                <div class="source-item">
+                    <span class="source-badge">GN</span>
+                    <span>Google News RSS - Aggregated Irish Wind Energy News</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Ireland Wind Farm News Aggregator</p>
+            <p>Data aggregated from publicly available news sources</p>
+            <p><small>This is an independent news aggregator and is not affiliated with any wind farm operators or government bodies.</small></p>
+        </div>
+    </footer>
+
+    <!-- Back to Top Button -->
+    <button id="backToTop" class="back-to-top" aria-label="Back to top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 19V5M5 12l7-7 7 7"/>
+        </svg>
+    </button>
+
+    <script src="app.js"></script>
 </body>
 </html>

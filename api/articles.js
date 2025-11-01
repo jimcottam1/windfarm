@@ -3,7 +3,6 @@ const xml2js = require('xml2js');
 const fs = require('fs');
 const path = require('path');
 const { version } = require('../package.json');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Initialize Redis client (ioredis for traditional Redis)
 let redis = null;
@@ -29,12 +28,7 @@ if (process.env.REDIS_URL) {
         });
 
         // Connection event handlers
-        redis.on('connect', () => {
-            console.log('[Redis] Connecting to Redis...');
-        });
-
         redis.on('ready', () => {
-            console.log('[Redis] Successfully connected and ready');
             redisReady = true;
         });
 
@@ -44,53 +38,30 @@ if (process.env.REDIS_URL) {
         });
 
         redis.on('close', () => {
-            console.log('[Redis] Connection closed');
             redisReady = false;
         });
-
-        console.log('[Redis] Initialized with REDIS_URL');
     } catch (error) {
         console.error('[Redis] Failed to initialize:', error.message);
         redis = null;
     }
-} else {
-    console.log('[Redis] REDIS_URL not found - caching disabled');
-}
-
-// Initialize Gemini AI (optional - only if API key is provided)
-let geminiModel = null;
-if (process.env.GEMINI_API_KEY) {
-    try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
-        console.log('[AI] Gemini initialized for smart categorization');
-    } catch (error) {
-        console.log('[AI] Gemini initialization failed:', error.message);
-    }
-} else {
-    console.log('[AI] Gemini API key not provided - AI categorization disabled');
 }
 
 // Redis Cache Helper Functions
 async function loadCache() {
     if (!redis) {
-        console.log('[Cache] Caching disabled - no Redis connection');
         return [];
     }
 
     try {
-        // Wait for connection with timeout
         const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 5000));
         const dataPromise = redis.get('articles-cache');
         const data = await Promise.race([dataPromise, timeout]);
 
         if (data === null) {
-            console.log('[Cache] No cached data found or timeout');
             return [];
         }
 
         const cached = JSON.parse(data);
-        console.log(`[Cache] Loaded ${cached.length} articles from cache`);
         return cached || [];
     } catch (error) {
         console.error('[Cache] Error loading cache:', error.message);
@@ -100,23 +71,14 @@ async function loadCache() {
 
 async function saveCache(articles) {
     if (!redis) {
-        console.log('[Cache] Caching disabled - skipping cache save');
         return false;
     }
 
     try {
-        // Store with 7-day expiration (604800 seconds) with timeout
         const timeout = new Promise((resolve) => setTimeout(() => resolve(false), 5000));
         const savePromise = redis.set('articles-cache', JSON.stringify(articles), 'EX', 604800);
         const result = await Promise.race([savePromise, timeout]);
-
-        if (result === false) {
-            console.log('[Cache] Save timeout after 5 seconds');
-            return false;
-        }
-
-        console.log(`[Cache] Saved ${articles.length} articles to cache (7-day TTL)`);
-        return true;
+        return result !== false;
     } catch (error) {
         console.error('[Cache] Error saving cache:', error.message);
         return false;
@@ -132,9 +94,6 @@ function mergeArticles(newArticles, cachedArticles) {
         return articleDate > sevenDaysAgo;
     });
 
-    console.log(`[Merge] Valid cached articles (< 7 days): ${validCached.length}`);
-    console.log(`[Merge] New articles fetched: ${newArticles.length}`);
-
     // Merge new and cached articles
     const allArticles = [...newArticles, ...validCached];
 
@@ -147,126 +106,7 @@ function mergeArticles(newArticles, cachedArticles) {
         return true;
     });
 
-    console.log(`[Merge] After deduplication: ${uniqueArticles.length} articles`);
     return uniqueArticles;
-}
-
-// AI Categorization Functions
-async function categorizeArticlesWithAI(articles) {
-    if (!geminiModel || !articles || articles.length === 0) {
-        console.log('[AI] Skipping AI categorization (no model or no articles)');
-        return articles;
-    }
-
-    // Find articles that don't have AI categories yet
-    const needsCategorization = articles.filter(article => !article.aiCategories);
-
-    if (needsCategorization.length === 0) {
-        console.log('[AI] All articles already have AI categories');
-        return articles;
-    }
-
-    // Limit to first 40 articles to avoid timeout (can expand in subsequent runs)
-    const MAX_TO_CATEGORIZE = 40;
-    const articlesToProcess = needsCategorization.slice(0, MAX_TO_CATEGORIZE);
-
-    console.log(`[AI] Categorizing ${articlesToProcess.length} of ${needsCategorization.length} articles with Gemini...`);
-    if (needsCategorization.length > MAX_TO_CATEGORIZE) {
-        console.log(`[AI] Remaining ${needsCategorization.length - MAX_TO_CATEGORIZE} will be categorized in next request`);
-    }
-
-    // Process in batches of 20 to avoid timeouts
-    const BATCH_SIZE = 20;
-    const batches = [];
-    for (let i = 0; i < articlesToProcess.length; i += BATCH_SIZE) {
-        batches.push(articlesToProcess.slice(i, i + BATCH_SIZE));
-    }
-
-    let totalCategorized = 0;
-
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
-        console.log(`[AI] Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} articles)`);
-
-        try {
-            const articlesList = batch.map((article, index) =>
-                `Article ${index}:
-Title: ${article.title}
-Description: ${article.description}
-Source: ${article.source}`
-            ).join('\n\n');
-
-            const prompt = `Analyze these ${batch.length} Irish wind energy news articles and categorize each one. Return ONLY a valid JSON array with one object per article (no markdown, no extra text).
-
-${articlesList}
-
-Return a JSON array in this exact format:
-[
-  {
-    "index": 0,
-    "projectStage": "planning|approved|construction|operational|objection|unknown",
-    "sentiment": "positive|neutral|concerns|opposition",
-    "keyTopics": ["jobs", "investment", "community", "environmental", "energy", "technology", "policy"],
-    "urgency": "high|medium|low"
-  },
-  ... (one object for each article)
-]
-
-Rules:
-- projectStage: Current stage of wind farm development
-- sentiment: Overall tone of the article
-- keyTopics: Array of 1-3 most relevant topics from the list above
-- urgency: How timely/important the news is
-- MUST return exactly ${batch.length} objects in the array
-
-JSON:`;
-
-            const result = await geminiModel.generateContent(prompt);
-            const response = await result.response;
-            let jsonText = response.text().trim();
-
-            // Clean up response - remove markdown code blocks if present
-            jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-            const categoriesArray = JSON.parse(jsonText);
-
-            // Validate response is an array
-            if (!Array.isArray(categoriesArray)) {
-                console.log(`[AI] Batch ${batchIndex + 1}: Response is not an array`);
-                continue;
-            }
-
-            // Apply AI categories to articles
-            categoriesArray.forEach(cat => {
-                if (cat.index !== undefined && cat.index < batch.length) {
-                    const article = batch[cat.index];
-                    article.aiCategories = {
-                        projectStage: cat.projectStage,
-                        sentiment: cat.sentiment,
-                        keyTopics: cat.keyTopics || [],
-                        urgency: cat.urgency
-                    };
-                    totalCategorized++;
-                }
-            });
-
-            console.log(`[AI] Batch ${batchIndex + 1}: Successfully categorized ${categoriesArray.length} articles`);
-
-        } catch (error) {
-            console.log(`[AI] Batch ${batchIndex + 1} failed: ${error.message}`);
-        }
-
-        // Small delay between batches to avoid rate limiting
-        if (batchIndex < batches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-    }
-
-    console.log(`[AI] Total categorized: ${totalCategorized}/${articlesToProcess.length}`);
-    if (needsCategorization.length > totalCategorized) {
-        console.log(`[AI] Note: ${needsCategorization.length - totalCategorized} articles still need categorization (will process in next run)`);
-    }
-    return articles;
 }
 
 // Get build info from pre-generated file
@@ -470,15 +310,12 @@ function getPlaceholderImage(title, description) {
 
 // Fetch articles from Google News RSS
 async function fetchGoogleNews() {
-    console.log(`[${new Date().toISOString()}] Fetching from Google News RSS...`);
-
     const articles = [];
     const processedUrls = new Set();
 
     try {
         for (const rssUrl of CONFIG.GOOGLE_NEWS_FEEDS) {
             try {
-                console.log(`Fetching: ${rssUrl}`);
                 const response = await fetch(rssUrl);
                 const xmlText = await response.text();
 
@@ -488,7 +325,6 @@ async function fetchGoogleNews() {
 
                 if (result.rss && result.rss.channel && result.rss.channel[0].item) {
                     const items = result.rss.channel[0].item;
-                    console.log(`Found ${items.length} items from feed`);
 
                     // Get channel title for use as fallback source
                     const channelTitle = result.rss.channel[0].title && result.rss.channel[0].title[0]
@@ -528,8 +364,6 @@ async function fetchGoogleNews() {
                             if (!matchesEnergyKeywords(articleText)) {
                                 continue; // Skip articles that don't match energy keywords
                             }
-                            // Log when Limerick article matches energy keywords
-                            console.log(`✓ LIMERICK MATCH: [${defaultSource}] ${title.substring(0, 80)}...`);
                         }
 
                         // Extract image from description or use placeholder
@@ -584,9 +418,7 @@ async function fetchGoogleNews() {
         const limitedArticles = uniqueArticles.slice(0, 400);
 
         // Fetch real images for articles with placeholder images (limit to first 30 to avoid timeout)
-        console.log('Fetching featured images from article pages...');
         const articlesToEnhance = limitedArticles.slice(0, 30);
-        let enhancedCount = 0;
 
         for (const article of articlesToEnhance) {
             // Check if using placeholder (Unsplash URL)
@@ -594,14 +426,12 @@ async function fetchGoogleNews() {
                 const realImage = await fetchArticleImage(article.url);
                 if (realImage) {
                     article.image = realImage;
-                    enhancedCount++;
                 }
                 // Small delay to avoid rate limiting
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
         }
 
-        console.log(`Enhanced ${enhancedCount} articles with real images`);
         return limitedArticles;
     } catch (error) {
         console.error('Error in fetchGoogleNews:', error);
@@ -623,21 +453,14 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const startTime = Date.now();
-        console.log(`[API] Starting article fetch at ${new Date().toISOString()}`);
-
         // Parse query parameters for filtering
         const filters = {
-            projectStage: req.query.projectStage, // planning|approved|construction|operational|objection|unknown
-            sentiment: req.query.sentiment, // positive|neutral|concerns|opposition
-            keyTopic: req.query.keyTopic, // jobs|investment|community|environmental|energy|technology|policy
-            urgency: req.query.urgency, // high|medium|low
             province: req.query.province, // Munster|Leinster|Connacht|Ulster|National
             category: req.query.category, // offshore|onshore
             tag: req.query.tag // offshore|onshore|planning|construction
         };
 
-        // 1. Load cached articles from Vercel KV
+        // 1. Load cached articles from Redis
         const cachedArticles = await loadCache();
 
         // 2. Fetch fresh articles from RSS feeds
@@ -651,44 +474,10 @@ module.exports = async (req, res) => {
 
         // 5. Limit to 400 articles
         let finalArticles = mergedArticles.slice(0, 400);
-        console.log(`[API] Final article count: ${finalArticles.length}`);
 
-        // 6. Run AI categorization on articles that don't have it yet
-        if (geminiModel) {
-            finalArticles = await categorizeArticlesWithAI(finalArticles);
-        }
-
-        // 7. Apply filters if any are specified
+        // 6. Apply filters if any are specified
         let filteredArticles = finalArticles;
         let filterApplied = false;
-
-        if (filters.projectStage) {
-            filteredArticles = filteredArticles.filter(a =>
-                a.aiCategories && a.aiCategories.projectStage === filters.projectStage
-            );
-            filterApplied = true;
-        }
-
-        if (filters.sentiment) {
-            filteredArticles = filteredArticles.filter(a =>
-                a.aiCategories && a.aiCategories.sentiment === filters.sentiment
-            );
-            filterApplied = true;
-        }
-
-        if (filters.keyTopic) {
-            filteredArticles = filteredArticles.filter(a =>
-                a.aiCategories && a.aiCategories.keyTopics && a.aiCategories.keyTopics.includes(filters.keyTopic)
-            );
-            filterApplied = true;
-        }
-
-        if (filters.urgency) {
-            filteredArticles = filteredArticles.filter(a =>
-                a.aiCategories && a.aiCategories.urgency === filters.urgency
-            );
-            filterApplied = true;
-        }
 
         if (filters.province) {
             filteredArticles = filteredArticles.filter(a => a.province === filters.province);
@@ -705,22 +494,12 @@ module.exports = async (req, res) => {
             filterApplied = true;
         }
 
-        if (filterApplied) {
-            console.log(`[API] Filtered from ${finalArticles.length} to ${filteredArticles.length} articles`);
-        }
-
-        // 8. Save to Redis cache (includes AI categories)
+        // 7. Save to Redis cache
         await saveCache(finalArticles);
 
-        const processingTime = Date.now() - startTime;
-        console.log(`[API] Total processing time: ${processingTime}ms`);
-
-        // 9. Build and return response
+        // 8. Build and return response
         const now = new Date();
         const buildInfo = getBuildInfo();
-
-        // Count articles with AI categories
-        const aiCategorizedCount = finalArticles.filter(a => a.aiCategories).length;
 
         const response = {
             articles: filteredArticles,
@@ -729,15 +508,12 @@ module.exports = async (req, res) => {
             totalArticles: finalArticles.length,
             cached: cachedArticles.length,
             fresh: newArticles.length,
-            aiCategorized: aiCategorizedCount,
             filtersApplied: filterApplied ? filters : null,
-            processingTime: processingTime,
             version: {
                 version: version,
                 feeds: 13,
                 maxArticles: 400,
                 cacheTTL: '7 days',
-                aiEnabled: !!geminiModel,
                 ...(buildInfo && { build: buildInfo })
             }
         };

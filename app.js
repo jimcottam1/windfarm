@@ -432,69 +432,70 @@ async function loadNews() {
                 date: new Date(article.date)
             }));
 
-            console.log(`✅ Successfully loaded ${allArticles.length} articles from backend`);
-            console.log(`🕐 Backend last updated: ${new Date(data.lastUpdate).toLocaleTimeString()}`);
+            // Log AI categorization stats (only once on initial load)
+            if (!window.statsLogged) {
+                window.statsLogged = true;
 
-            // Log AI categorization stats
-            const withAI = allArticles.filter(a => a.aiCategories).length;
-            const withoutAI = allArticles.length - withAI;
-            console.log(`\n🤖 AI CATEGORIZATION STATS:`);
-            console.log(`   ✓ Articles with AI categories: ${withAI} (${Math.round(withAI/allArticles.length*100)}%)`);
-            console.log(`   ✗ Articles without AI categories: ${withoutAI} (${Math.round(withoutAI/allArticles.length*100)}%)`);
+                console.log(`✅ Successfully loaded ${allArticles.length} articles from backend`);
+                console.log(`🕐 Backend last updated: ${new Date(data.lastUpdate).toLocaleTimeString()}`);
 
-            // Log sentiment breakdown
-            if (withAI > 0) {
-                const sentiments = {
-                    positive: 0,
-                    neutral: 0,
-                    concerns: 0,
-                    opposition: 0
-                };
-                const stages = {
-                    planning: 0,
-                    approved: 0,
-                    construction: 0,
-                    operational: 0,
-                    objection: 0,
-                    unknown: 0
-                };
-                const urgency = {
-                    high: 0,
-                    medium: 0,
-                    low: 0
-                };
+                const withAI = allArticles.filter(a => a.aiCategories).length;
+                const withoutAI = allArticles.length - withAI;
+                console.log(`\n🤖 AI CATEGORIZATION STATS:`);
+                console.log(`   ✓ Articles with AI categories: ${withAI} (${Math.round(withAI/allArticles.length*100)}%)`);
+                console.log(`   ✗ Articles without AI categories: ${withoutAI} (${Math.round(withoutAI/allArticles.length*100)}%)`);
 
-                allArticles.forEach(a => {
-                    if (a.aiCategories) {
-                        sentiments[a.aiCategories.sentiment] = (sentiments[a.aiCategories.sentiment] || 0) + 1;
-                        stages[a.aiCategories.projectStage] = (stages[a.aiCategories.projectStage] || 0) + 1;
-                        urgency[a.aiCategories.urgency] = (urgency[a.aiCategories.urgency] || 0) + 1;
-                    }
-                });
+                // Log sentiment breakdown
+                if (withAI > 0) {
+                    const sentiments = {
+                        positive: 0,
+                        neutral: 0,
+                        concerns: 0,
+                        opposition: 0
+                    };
+                    const stages = {
+                        planning: 0,
+                        approved: 0,
+                        construction: 0,
+                        operational: 0,
+                        objection: 0,
+                        unknown: 0
+                    };
+                    const urgency = {
+                        high: 0,
+                        medium: 0,
+                        low: 0
+                    };
 
-                console.log(`\n📊 SENTIMENT BREAKDOWN:`);
-                console.log(`   😊 Positive: ${sentiments.positive}`);
-                console.log(`   😐 Neutral: ${sentiments.neutral}`);
-                console.log(`   😟 Concerns: ${sentiments.concerns}`);
-                console.log(`   😠 Opposition: ${sentiments.opposition}`);
+                    allArticles.forEach(a => {
+                        if (a.aiCategories) {
+                            sentiments[a.aiCategories.sentiment] = (sentiments[a.aiCategories.sentiment] || 0) + 1;
+                            stages[a.aiCategories.projectStage] = (stages[a.aiCategories.projectStage] || 0) + 1;
+                            urgency[a.aiCategories.urgency] = (urgency[a.aiCategories.urgency] || 0) + 1;
+                        }
+                    });
 
-                console.log(`\n🏗️ PROJECT STAGES:`);
-                console.log(`   📋 Planning: ${stages.planning}`);
-                console.log(`   ✅ Approved: ${stages.approved}`);
-                console.log(`   🚧 Construction: ${stages.construction}`);
-                console.log(`   ⚡ Operational: ${stages.operational}`);
-                console.log(`   ⚠️ Objection: ${stages.objection}`);
-                console.log(`   ❓ Unknown: ${stages.unknown}`);
+                    console.log(`\n📊 SENTIMENT BREAKDOWN:`);
+                    console.log(`   😊 Positive: ${sentiments.positive}`);
+                    console.log(`   😐 Neutral: ${sentiments.neutral}`);
+                    console.log(`   😟 Concerns: ${sentiments.concerns}`);
+                    console.log(`   😠 Opposition: ${sentiments.opposition}`);
 
-                console.log(`\n⚡ URGENCY LEVELS:`);
-                console.log(`   🔴 High: ${urgency.high}`);
-                console.log(`   🟡 Medium: ${urgency.medium}`);
-                console.log(`   🟢 Low: ${urgency.low}`);
+                    console.log(`\n🏗️ PROJECT STAGES:`);
+                    console.log(`   📋 Planning: ${stages.planning}`);
+                    console.log(`   ✅ Approved: ${stages.approved}`);
+                    console.log(`   🚧 Construction: ${stages.construction}`);
+                    console.log(`   ⚡ Operational: ${stages.operational}`);
+                    console.log(`   ⚠️ Objection: ${stages.objection}`);
+                    console.log(`   ❓ Unknown: ${stages.unknown}`);
+
+                    console.log(`\n⚡ URGENCY LEVELS:`);
+                    console.log(`   🔴 High: ${urgency.high}`);
+                    console.log(`   🟡 Medium: ${urgency.medium}`);
+                    console.log(`   🟢 Low: ${urgency.low}`);
+                }
+                console.log(''); // Empty line for readability
             }
-            console.log(''); // Empty line for readability
-
-            // Fetch and display backend logs
-            fetchBackendLogs();
         } else {
             console.log('No articles found from backend.');
             allArticles = [];
@@ -1218,7 +1219,11 @@ window.showHelp = function() {
 `);
 };
 
-console.log(`\n💡 Type showHelp() for available console commands`);
+// Only show help message once on initial load (not on every refresh)
+if (!window.consoleInitialized) {
+    window.consoleInitialized = true;
+    console.log(`\n💡 Type showHelp() for available console commands`);
+}
 
 /* ========================================
    UI HELPERS

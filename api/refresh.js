@@ -35,7 +35,6 @@ module.exports = async (req, res) => {
             success: true,
             articlesProcessed: capturedData?.articles?.length || 0,
             totalArticles: capturedData?.totalArticles || 0,
-            aiCategorized: capturedData?.aiCategorized || 0,
             timestamp: new Date().toISOString()
         });
     } catch (error) {

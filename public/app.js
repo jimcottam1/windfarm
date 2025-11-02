@@ -577,8 +577,16 @@ function displayArticles(resetPagination = true) {
 }
 
 function loadMoreArticles() {
-    currentPage++;
+    // Don't increment currentPage - we use displayedArticles.length instead
     displayArticles(false);
+
+    // Scroll to the first newly loaded article
+    const firstNewArticle = newsGrid.children[displayedArticles.length - ARTICLES_PER_PAGE];
+    if (firstNewArticle) {
+        setTimeout(() => {
+            firstNewArticle.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    }
 }
 
 function updateLoadMoreButton() {

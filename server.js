@@ -262,7 +262,7 @@ async function fetchArticleData(url, title) {
 // Enable CORS for all origins
 app.use(cors());
 app.use(express.json());
-app.use(express.static('.')); // Serve static files from current directory
+app.use(express.static('public')); // Serve static files from public directory
 
 // Configuration
 const CONFIG = {

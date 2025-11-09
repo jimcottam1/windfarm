@@ -49,7 +49,7 @@ if (process.env.REDIS_URL) {
 // Redis Cache Helper Functions
 async function loadCache() {
     if (!redis) {
-        return [];
+        return { articles: [], timestamp: null };
     }
 
     try {
@@ -58,14 +58,14 @@ async function loadCache() {
         const data = await Promise.race([dataPromise, timeout]);
 
         if (data === null) {
-            return [];
+            return { articles: [], timestamp: null };
         }
 
         const cached = JSON.parse(data);
-        return cached || [];
+        return cached || { articles: [], timestamp: null };
     } catch (error) {
         console.error('[Cache] Error loading cache:', error.message);
-        return [];
+        return { articles: [], timestamp: null };
     }
 }
 
@@ -75,8 +75,12 @@ async function saveCache(articles) {
     }
 
     try {
+        const cacheData = {
+            articles: articles,
+            timestamp: Date.now()
+        };
         const timeout = new Promise((resolve) => setTimeout(() => resolve(false), 5000));
-        const savePromise = redis.set('articles-cache', JSON.stringify(articles), 'EX', 604800);
+        const savePromise = redis.set('articles-cache', JSON.stringify(cacheData), 'EX', 604800);
         const result = await Promise.race([savePromise, timeout]);
         return result !== false;
     } catch (error) {
@@ -446,17 +450,27 @@ module.exports = async (req, res) => {
         const forceRefresh = req.query.refresh === 'true';
 
         // 1. Load cached articles from Redis
-        const cachedArticles = await loadCache();
+        const cacheData = await loadCache();
+        const cachedArticles = cacheData.articles || [];
+        const cacheTimestamp = cacheData.timestamp;
+
+        // Cache freshness threshold: 1 hour (in milliseconds)
+        const CACHE_MAX_AGE = 60 * 60 * 1000; // 1 hour
+        const isCacheStale = !cacheTimestamp || (Date.now() - cacheTimestamp) > CACHE_MAX_AGE;
 
         let finalArticles = [];
         let fromCache = false;
 
-        // If we have cached articles and not forcing refresh, use cache
-        if (cachedArticles.length > 0 && !forceRefresh) {
+        // Use cache only if: has articles, not forcing refresh, and not stale
+        if (cachedArticles.length > 0 && !forceRefresh && !isCacheStale) {
             finalArticles = cachedArticles;
             fromCache = true;
+            console.log('[Cache] Using cached articles (age: ' + Math.round((Date.now() - cacheTimestamp) / 1000 / 60) + ' minutes)');
         } else {
-            // Fetch fresh articles only if cache is empty or refresh requested
+            // Fetch fresh articles if: cache empty, refresh requested, or cache is stale
+            const reason = forceRefresh ? 'forced refresh' : (isCacheStale ? 'cache stale' : 'cache empty');
+            console.log('[Cache] Fetching fresh articles (' + reason + ')');
+
             const newArticles = await fetchGoogleNews();
 
             // Merge with any cached articles and deduplicate
@@ -496,12 +510,15 @@ module.exports = async (req, res) => {
             count: filteredArticles.length,
             totalArticles: finalArticles.length,
             fromCache: fromCache,
+            cacheAge: cacheTimestamp ? Math.round((Date.now() - cacheTimestamp) / 1000 / 60) : null,
+            cacheMaxAge: 60,
             filtersApplied: filterApplied ? filters : null,
             version: {
                 version: version,
                 feeds: 13,
                 maxArticles: 400,
                 cacheTTL: '7 days',
+                cacheRefreshInterval: '1 hour',
                 ...(buildInfo && { build: buildInfo })
             }
         };

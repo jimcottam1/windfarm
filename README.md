@@ -469,3 +469,7 @@ Your Ireland Wind Farm News aggregator is ready to use!
 ---
 
 *Built to support Ireland's journey to renewable energy independence*
+
+---
+
+**Last Updated:** November 2025 - v1.0.0

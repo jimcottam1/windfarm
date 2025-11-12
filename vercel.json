@@ -4,6 +4,15 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 10
+    },
+    "api/cron/refresh.js": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/refresh",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

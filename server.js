@@ -8,6 +8,7 @@ const { execSync } = require('child_process');
 const { version } = require('./package.json');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const NewsAPI = require('newsapi');
+const Redis = require('ioredis');
 const fs = require('fs');
 const path = require('path');
 
@@ -92,6 +93,29 @@ if (process.env.NEWSAPI_KEY) {
     }
 } else {
     console.log('ℹ NewsAPI key not provided - using RSS feeds only');
+}
+
+// Initialize Redis (optional - for caching in serverless environments)
+let redis = null;
+if (process.env.REDIS_URL) {
+    try {
+        redis = new Redis(process.env.REDIS_URL, {
+            maxRetriesPerRequest: 3,
+            enableReadyCheck: false,
+            lazyConnect: true
+        });
+        redis.connect().then(() => {
+            console.log('✓ Redis connected for caching');
+        }).catch((error) => {
+            console.log('✗ Redis connection failed:', error.message);
+            redis = null;
+        });
+    } catch (error) {
+        console.log('✗ Redis initialization failed:', error.message);
+        redis = null;
+    }
+} else {
+    console.log('ℹ Redis URL not provided - using file system cache');
 }
 
 // Verify articles are about wind farms using Gemini AI (batch processing)
@@ -366,8 +390,33 @@ function ensureCacheDirectory() {
     }
 }
 
-// Load cached articles from file
-function loadCachedArticles() {
+// Load cached articles (from Redis if available, otherwise from file)
+async function loadCachedArticles() {
+    // Try Redis first
+    if (redis) {
+        try {
+            const data = await redis.get('articles:cache');
+            if (data) {
+                const parsed = JSON.parse(data);
+
+                // Filter out old articles (older than CACHE_MAX_AGE_DAYS)
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - CACHE_MAX_AGE_DAYS);
+
+                const validArticles = parsed.articles.filter(article => {
+                    const articleDate = new Date(article.date);
+                    return articleDate >= cutoffDate;
+                });
+
+                console.log(`Loaded ${validArticles.length} cached articles from Redis (${parsed.articles.length - validArticles.length} expired)`);
+                return validArticles;
+            }
+        } catch (error) {
+            console.error('Error loading cached articles from Redis:', error.message);
+        }
+    }
+
+    // Fallback to file system
     try {
         ensureCacheDirectory();
         if (fs.existsSync(CACHE_FILE)) {
@@ -387,23 +436,36 @@ function loadCachedArticles() {
             return validArticles;
         }
     } catch (error) {
-        console.error('Error loading cached articles:', error.message);
+        console.error('Error loading cached articles from disk:', error.message);
     }
     return [];
 }
 
-// Save articles to cache file
-function saveCachedArticles(articles) {
+// Save articles to cache (Redis if available, otherwise file)
+async function saveCachedArticles(articles) {
+    const cacheData = {
+        timestamp: Date.now(),
+        articles: articles
+    };
+
+    // Try Redis first
+    if (redis) {
+        try {
+            await redis.set('articles:cache', JSON.stringify(cacheData), 'EX', 86400 * 7); // 7 days expiry
+            console.log(`Saved ${articles.length} articles to Redis cache`);
+            return;
+        } catch (error) {
+            console.error('Error saving cached articles to Redis:', error.message);
+        }
+    }
+
+    // Fallback to file system
     try {
         ensureCacheDirectory();
-        const cacheData = {
-            timestamp: Date.now(),
-            articles: articles
-        };
         fs.writeFileSync(CACHE_FILE, JSON.stringify(cacheData, null, 2), 'utf8');
         console.log(`Saved ${articles.length} articles to disk cache`);
     } catch (error) {
-        console.error('Error saving cached articles:', error.message);
+        console.error('Error saving cached articles to disk:', error.message);
     }
 }
 
@@ -612,7 +674,7 @@ async function fetchGoogleNews() {
     console.log(`[${new Date().toISOString()}] Fetching news from all sources...`);
 
     // Load previously cached articles (including AI categories)
-    const previouslyCached = loadCachedArticles();
+    const previouslyCached = await loadCachedArticles();
 
     const articles = [];
     const processedUrls = new Set();
@@ -822,8 +884,8 @@ async function fetchGoogleNews() {
         cachedArticles = limitedArticles;
         lastFetchTime = new Date();
 
-        // Save articles to disk cache (preserves AI categories across restarts)
-        saveCachedArticles(cachedArticles);
+        // Save articles to cache (preserves AI categories across restarts)
+        await saveCachedArticles(cachedArticles);
 
         console.log(`Successfully cached ${cachedArticles.length} articles`);
         console.log(`Enhanced ${enhancedCount} articles with real images`);

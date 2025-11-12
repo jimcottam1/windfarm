@@ -1,0 +1,20 @@
+# robots.txt for Ireland Wind Farm News
+# https://windfarm-news.vercel.app
+
+User-agent: *
+Allow: /
+Allow: /styles.css
+Allow: /app.js
+
+# Disallow backend API paths from indexing
+Disallow: /api/
+
+# Allow search engines to index the sitemap
+Sitemap: https://windfarm-news.vercel.app/sitemap.xml
+
+# Crawl-delay to be nice to the server
+Crawl-delay: 1
+
+# Block access to specific files
+Disallow: /.env
+Disallow: /.git/

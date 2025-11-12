@@ -4,10 +4,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ireland Wind Farm News - Live Updates</title>
+
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Real-time news and updates on wind farm developments across Ireland. Track offshore and onshore wind projects, planning approvals, construction progress, and renewable energy developments in Munster, Leinster, Connacht, and Ulster.">
+    <meta name="keywords" content="ireland wind farms, offshore wind ireland, onshore wind ireland, renewable energy ireland, wind farm news, irish wind projects, wind energy developments, munster wind farms, leinster wind farms, connacht wind farms, ulster wind farms, wind farm planning approvals, irish renewable energy">
+    <meta name="author" content="Ireland Wind Farm News">
+    <link rel="canonical" href="https://windfarm-news.vercel.app/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://windfarm-news.vercel.app/">
+    <meta property="og:title" content="Ireland Wind Farm News - Live Updates">
+    <meta property="og:description" content="Track wind farm developments across Ireland with real-time news updates on offshore and onshore renewable energy projects.">
+    <meta property="og:image" content="https://windfarm-news.vercel.app/og-image.jpg">
+    <meta property="og:site_name" content="Ireland Wind Farm News">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://windfarm-news.vercel.app/">
+    <meta name="twitter:title" content="Ireland Wind Farm News - Live Updates">
+    <meta name="twitter:description" content="Real-time wind farm news across Ireland. Track offshore and onshore renewable energy projects.">
+    <meta name="twitter:image" content="https://windfarm-news.vercel.app/twitter-card.jpg">
+
+    <!-- Additional SEO -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="language" content="English">
+    <meta name="geo.region" content="IE">
+    <meta name="geo.placename" content="Ireland">
+
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Ireland Wind Farm News",
+      "url": "https://windfarm-news.vercel.app",
+      "description": "Real-time news aggregator for wind farm developments across Ireland",
+      "inLanguage": "en-IE",
+      "about": {
+        "@type": "Thing",
+        "name": "Wind Energy",
+        "sameAs": "https://en.wikipedia.org/wiki/Wind_power"
+      },
+      "audience": {
+        "@type": "Audience",
+        "audienceType": ["Renewable Energy Professionals", "Environmental Researchers", "Policy Makers", "Irish Citizens"]
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "Ireland Wind Farm News",
+        "url": "https://windfarm-news.vercel.app",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://windfarm-news.vercel.app/logo.png"
+        }
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://windfarm-news.vercel.app/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      // Replace G-XXXXXXXXXX with your actual GA4 Measurement ID
+      gtag('config', 'G-XXXXXXXXXX', {
+        'send_page_view': true,
+        'anonymize_ip': true,
+        'cookie_flags': 'SameSite=None;Secure'
+      });
+    </script>
 </head>
 <body>
     <!-- Header -->
@@ -165,6 +243,25 @@
                         <p>Total Articles</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trending Now -->
+    <section class="trending-section">
+        <div class="container">
+            <div class="trending-header">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                        <polyline points="17 6 23 6 23 12"/>
+                    </svg>
+                    Trending Now
+                </h2>
+                <p class="trending-subtitle">Most recent wind farm developments</p>
+            </div>
+            <div id="trendingGrid" class="trending-grid">
+                <!-- Trending articles will be inserted here by JavaScript -->
             </div>
         </div>
     </section>

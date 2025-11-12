@@ -39,6 +39,7 @@ const loadMoreBtn = document.getElementById('loadMoreBtn');
 const loadMoreText = document.getElementById('loadMoreText');
 const articlesShown = document.getElementById('articlesShown');
 const articlesTotal = document.getElementById('articlesTotal');
+const trendingGrid = document.getElementById('trendingGrid');
 
 // Province filter checkboxes
 const filterMunster = document.getElementById('filterMunster');
@@ -143,17 +144,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Province filter listeners
-    filterMunster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterMunster); });
-    filterLeinster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterLeinster); });
-    filterConnacht.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterConnacht); });
-    filterUlster.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterUlster); });
-    filterNational.addEventListener('change', () => { applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterNational); });
+    // Province filter listeners with tracking
+    filterMunster.addEventListener('change', () => {
+        trackEvent('filter_change', { filter_type: 'province', filter_value: 'Munster', checked: filterMunster.checked });
+        applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterMunster);
+    });
+    filterLeinster.addEventListener('change', () => {
+        trackEvent('filter_change', { filter_type: 'province', filter_value: 'Leinster', checked: filterLeinster.checked });
+        applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterLeinster);
+    });
+    filterConnacht.addEventListener('change', () => {
+        trackEvent('filter_change', { filter_type: 'province', filter_value: 'Connacht', checked: filterConnacht.checked });
+        applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterConnacht);
+    });
+    filterUlster.addEventListener('change', () => {
+        trackEvent('filter_change', { filter_type: 'province', filter_value: 'Ulster', checked: filterUlster.checked });
+        applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterUlster);
+    });
+    filterNational.addEventListener('change', () => {
+        trackEvent('filter_change', { filter_type: 'province', filter_value: 'National', checked: filterNational.checked });
+        applyFilters(); updateActiveFilterCount(); collapseFilterSection(filterNational);
+    });
 
-    // View toggle
+    // View toggle with tracking
     viewButtons.forEach(btn => {
         btn.addEventListener('click', function() {
             const view = this.dataset.view;
+            trackEvent('view_change', { view_type: view });
             switchView(view);
         });
     });
@@ -298,6 +315,7 @@ async function loadNews() {
         applyFilters();
         updateStats();
         updateTicker();
+        updateTrending();
 
     } catch (error) {
         console.error('Error loading news:', error);
@@ -333,6 +351,7 @@ function loadCachedNews() {
                 updateStats();
                 updateLastRefreshed();
                 updateTicker();
+                updateTrending();
                 console.log(`Loaded ${allArticles.length} cached articles`);
             } else {
                 console.log('Cache expired, will fetch fresh news');
@@ -398,6 +417,10 @@ function applyFilters() {
 }
 
 function performSearch() {
+    const searchQuery = searchInput.value.trim();
+    if (searchQuery) {
+        trackEvent('search', { search_term: searchQuery });
+    }
     applyFilters();
     updateActiveFilterCount();
 }
@@ -467,8 +490,13 @@ function displayArticles(resetPagination = true) {
 }
 
 function loadMoreArticles() {
+    const articlesBeforeLoad = displayedArticles.length;
+
     // Don't increment currentPage - we use displayedArticles.length instead
     displayArticles(false);
+
+    const articlesLoaded = displayedArticles.length - articlesBeforeLoad;
+    trackEvent('load_more', { articles_loaded: articlesLoaded });
 
     // Scroll to the first newly loaded article
     const firstNewArticle = newsGrid.children[displayedArticles.length - ARTICLES_PER_PAGE];
@@ -519,6 +547,11 @@ function createNewsCard(article) {
         `<span class="tag ${tag}">${tag}</span>`
     ).join('');
 
+    // Encode URLs for sharing
+    const encodedUrl = encodeURIComponent(article.url);
+    const encodedTitle = encodeURIComponent(article.title);
+    const encodedDescription = encodeURIComponent(article.description || '');
+
     card.innerHTML = `
         <div class="news-card-image">
             ${article.image ?
@@ -537,7 +570,32 @@ function createNewsCard(article) {
             <h3>${article.title}</h3>
             <p class="news-card-description">${article.description || 'No description available.'}</p>
             <div class="news-card-footer">
-                <span class="news-card-source">${article.source}</span>
+                <div class="news-card-footer-left">
+                    <span class="news-card-source">${article.source}</span>
+                    <div class="share-buttons">
+                        <button class="share-btn" data-share="twitter" data-url="${article.url}" data-title="${article.title}" title="Share on Twitter">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                        </button>
+                        <button class="share-btn" data-share="linkedin" data-url="${article.url}" data-title="${article.title}" title="Share on LinkedIn">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                            </svg>
+                        </button>
+                        <button class="share-btn" data-share="facebook" data-url="${article.url}" title="Share on Facebook">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                        </button>
+                        <button class="share-btn" data-share="email" data-url="${article.url}" data-title="${article.title}" data-description="${article.description || ''}" title="Share via Email">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                <polyline points="22,6 12,13 2,6"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
                 <a href="${article.url}" target="_blank" class="news-card-link">
                     Read more
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -786,6 +844,149 @@ function updateTicker() {
 
     console.log(`Ticker updated with ${limerickArticles.length} Limerick articles`);
 }
+
+/* ========================================
+   TRENDING SECTION
+   ======================================== */
+
+function updateTrending() {
+    if (!trendingGrid) return;
+
+    // Get the 5 most recent articles
+    const trendingArticles = allArticles
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 5);
+
+    if (trendingArticles.length === 0) {
+        trendingGrid.innerHTML = '<p style="text-align: center; color: var(--text-light);">No trending articles available</p>';
+        return;
+    }
+
+    // Clear existing content
+    trendingGrid.innerHTML = '';
+
+    // Create trending cards
+    trendingArticles.forEach(article => {
+        const card = document.createElement('div');
+        card.className = 'trending-card';
+
+        const timeAgo = getTimeAgo(article.date);
+        const primaryTag = article.tags[0] || 'news';
+
+        card.innerHTML = `
+            <div class="trending-card-image">
+                ${article.image ?
+                    `<img loading="lazy" src="${article.image}" alt="${article.title}">` :
+                    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+                    </svg>`
+                }
+                <div class="trending-badge">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7-6.3-4.6-6.3 4.6 2.3-7-6-4.6h7.6z"/>
+                    </svg>
+                    Trending
+                </div>
+            </div>
+            <div class="trending-card-content">
+                <h3>${article.title}</h3>
+                <div class="trending-card-tags">
+                    <span class="tag ${primaryTag}">${primaryTag}</span>
+                </div>
+                <div class="trending-card-meta">
+                    <span>${article.source}</span>
+                    <span>${timeAgo}</span>
+                </div>
+                <a href="${article.url}" target="_blank" class="trending-card-link">
+                    Read more
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+        `;
+
+        trendingGrid.appendChild(card);
+    });
+
+    console.log(`Trending section updated with ${trendingArticles.length} articles`);
+}
+
+/* ========================================
+   ANALYTICS & TRACKING
+   ======================================== */
+
+/**
+ * Track custom events with Google Analytics 4
+ */
+function trackEvent(eventName, params = {}) {
+    if (typeof gtag === 'function') {
+        gtag('event', eventName, params);
+        console.log(`Tracked event: ${eventName}`, params);
+    }
+}
+
+// Track article link clicks
+document.addEventListener('click', function(e) {
+    const articleLink = e.target.closest('.news-card-link');
+    if (articleLink) {
+        const url = articleLink.getAttribute('href');
+        const card = articleLink.closest('.news-card');
+        const title = card ? card.querySelector('h3')?.textContent : 'Unknown';
+        trackEvent('article_click', {
+            article_url: url,
+            article_title: title,
+            link_text: 'Read more'
+        });
+    }
+});
+
+/* ========================================
+   SOCIAL SHARING
+   ======================================== */
+
+// Event delegation for share buttons
+document.addEventListener('click', function(e) {
+    const shareBtn = e.target.closest('.share-btn');
+    if (!shareBtn) return;
+
+    e.preventDefault();
+
+    const shareType = shareBtn.getAttribute('data-share');
+    const url = shareBtn.getAttribute('data-url');
+    const title = shareBtn.getAttribute('data-title');
+    const description = shareBtn.getAttribute('data-description') || '';
+
+    // Track share event with GA4
+    trackEvent('share', {
+        'method': shareType,
+        'content_type': 'article',
+        'item_id': url
+    });
+
+    // Open share window
+    let shareUrl = '';
+
+    switch(shareType) {
+        case 'twitter':
+            shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+            break;
+        case 'linkedin':
+            shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
+            break;
+        case 'facebook':
+            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+            break;
+        case 'email':
+            shareUrl = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(description + '\n\n' + url)}`;
+            window.location.href = shareUrl;
+            return;
+    }
+
+    if (shareUrl) {
+        window.open(shareUrl, 'share-dialog', 'width=626,height=436');
+    }
+});
 
 /* ========================================
    EXPORT FOR TESTING

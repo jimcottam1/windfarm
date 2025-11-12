@@ -302,12 +302,26 @@ module.exports = async (req, res) => {
             };
             await redis.set('articles-cache', JSON.stringify(cacheData), 'EX', 604800); // 7 days
             console.log(`Saved ${finalArticles.length} articles to Redis cache`);
+
+            // Save cron execution log
+            const cronLog = {
+                timestamp: Date.now(),
+                articlesProcessed: uniqueArticles.length,
+                articlesFiltered: finalArticles.length,
+                newsApiCount: newsApiArticles.length,
+                rssCount: rssArticles.length,
+                success: true
+            };
+            await redis.set('cron:last-run', JSON.stringify(cronLog), 'EX', 604800);
+            console.log('Saved cron execution log');
         }
 
         res.status(200).json({
             success: true,
             articlesProcessed: uniqueArticles.length,
             articlesFiltered: finalArticles.length,
+            newsApiCount: newsApiArticles.length,
+            rssCount: rssArticles.length,
             timestamp: new Date().toISOString()
         });
     } catch (error) {

@@ -7,6 +7,7 @@ const cron = require('node-cron');
 const { execSync } = require('child_process');
 const { version } = require('./package.json');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const NewsAPI = require('newsapi');
 const fs = require('fs');
 const path = require('path');
 
@@ -78,6 +79,76 @@ if (process.env.GEMINI_API_KEY) {
     }
 } else {
     console.log('ℹ Gemini API key not provided - AI categorization disabled');
+}
+
+// Initialize NewsAPI (optional - only if API key is provided)
+let newsapi = null;
+if (process.env.NEWSAPI_KEY) {
+    try {
+        newsapi = new NewsAPI(process.env.NEWSAPI_KEY);
+        console.log('✓ NewsAPI initialized for news aggregation');
+    } catch (error) {
+        console.log('✗ NewsAPI initialization failed:', error.message);
+    }
+} else {
+    console.log('ℹ NewsAPI key not provided - using RSS feeds only');
+}
+
+// Verify articles are about wind farms using Gemini AI (batch processing)
+async function verifyArticleRelevance(articles) {
+    if (!geminiModel || !articles || articles.length === 0) {
+        return articles.map(() => true); // If no AI, accept all
+    }
+
+    try {
+        const articlesList = articles.map((article, index) =>
+            `Article ${index}: ${article.title}`
+        ).join('\n');
+
+        const prompt = `Analyze these news article titles and determine if they are directly related to wind farms, wind turbines, or wind energy projects in Ireland. Return ONLY a valid JSON array (no markdown, no extra text).
+
+${articlesList}
+
+For each article, return true if it's about:
+- Wind farms (onshore or offshore)
+- Wind turbines or wind energy projects
+- Wind energy policy, planning, construction, or operations
+- Community impacts of wind farms
+- Wind energy investment or development
+
+Return false if it's about:
+- General renewable energy without specific wind focus
+- Solar, hydro, or other non-wind energy
+- Generic energy policy without wind specifics
+- Air pollution or other environmental topics not related to wind
+- General company news unless specifically about wind projects
+
+Return a JSON array in this exact format:
+[true, false, true, ...]
+
+One boolean for each of the ${articles.length} articles, in order.
+
+JSON:`;
+
+        const result = await geminiModel.generateContent(prompt);
+        const response = await result.response;
+        let jsonText = response.text().trim();
+
+        // Clean up response
+        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        const relevanceArray = JSON.parse(jsonText);
+
+        if (!Array.isArray(relevanceArray)) {
+            console.log(`  ✗ AI relevance check returned invalid format`);
+            return articles.map(() => true); // Accept all if AI fails
+        }
+
+        return relevanceArray;
+    } catch (error) {
+        console.log(`  ✗ AI relevance check failed: ${error.message}`);
+        return articles.map(() => true); // Accept all if AI fails
+    }
 }
 
 // Categorize multiple articles using Gemini AI (batch processing)
@@ -283,7 +354,9 @@ const CACHE_MAX_AGE_DAYS = 7; // Keep articles for 7 days
 // In-memory cache
 let cachedArticles = [];
 let lastFetchTime = null;
+let lastNewsAPIFetch = null;
 let isFetching = false;
+const NEWSAPI_FETCH_INTERVAL_HOURS = 1; // Fetch from NewsAPI only once per hour to stay within 100 req/day limit
 
 // Ensure cache directory exists
 function ensureCacheDirectory() {
@@ -442,6 +515,92 @@ function getPlaceholderImage(title, description) {
     }
 }
 
+// Fetch articles from NewsAPI
+async function fetchNewsAPI() {
+    if (!newsapi) {
+        console.log('NewsAPI not initialized, skipping...');
+        return [];
+    }
+
+    // Check if we've fetched recently to avoid exceeding rate limit
+    if (lastNewsAPIFetch) {
+        const hoursSinceLastFetch = (Date.now() - lastNewsAPIFetch) / (1000 * 60 * 60);
+        if (hoursSinceLastFetch < NEWSAPI_FETCH_INTERVAL_HOURS) {
+            console.log(`NewsAPI: Skipping (last fetch ${hoursSinceLastFetch.toFixed(1)}h ago, waiting ${NEWSAPI_FETCH_INTERVAL_HOURS}h between fetches)`);
+            return [];
+        }
+    }
+
+    console.log('Fetching from NewsAPI...');
+    const articles = [];
+    const processedUrls = new Set();
+
+    try {
+        // Search for wind energy news in Ireland
+        // Using multiple searches to maximize relevant results
+        const queries = [
+            'wind farm Ireland',
+            'wind energy Ireland',
+            'offshore wind Ireland'
+        ];
+
+        for (const query of queries) {
+            try {
+                const response = await newsapi.v2.everything({
+                    q: query,
+                    language: 'en',
+                    sortBy: 'publishedAt',
+                    pageSize: 20, // Limit results per query to manage rate limit
+                    domains: 'irishtimes.com,independent.ie,rte.ie,thejournal.ie,businesspost.ie,examiner.ie'
+                });
+
+                if (response.articles && response.articles.length > 0) {
+                    console.log(`Found ${response.articles.length} articles for "${query}"`);
+
+                    for (const item of response.articles) {
+                        const url = item.url || '#';
+
+                        if (!processedUrls.has(url) && item.title) {
+                            processedUrls.add(url);
+
+                            const article = {
+                                title: item.title,
+                                description: item.description || item.content?.substring(0, 200) + '...' || '',
+                                source: item.source.name || 'NewsAPI',
+                                date: new Date(item.publishedAt).toISOString(),
+                                url: url,
+                                image: item.urlToImage || getPlaceholderImage(item.title, item.description || ''),
+                                tags: categorizeTags(item.title + ' ' + (item.description || '')),
+                                category: categorizeArticle(item.title + ' ' + (item.description || '')),
+                                province: categorizeProvince(item.title + ' ' + (item.description || ''))
+                            };
+
+                            articles.push(article);
+                        }
+                    }
+                }
+
+                // Small delay between queries to be respectful of API
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+            } catch (error) {
+                console.error(`Error fetching from NewsAPI for "${query}":`, error.message);
+            }
+        }
+
+        console.log(`NewsAPI returned ${articles.length} unique articles`);
+
+        // Update last fetch time
+        lastNewsAPIFetch = Date.now();
+
+        return articles;
+
+    } catch (error) {
+        console.error('Error in fetchNewsAPI:', error.message);
+        return [];
+    }
+}
+
 // Fetch articles from Google News RSS
 async function fetchGoogleNews() {
     if (isFetching) {
@@ -450,7 +609,7 @@ async function fetchGoogleNews() {
     }
 
     isFetching = true;
-    console.log(`[${new Date().toISOString()}] Fetching from Google News RSS...`);
+    console.log(`[${new Date().toISOString()}] Fetching news from all sources...`);
 
     // Load previously cached articles (including AI categories)
     const previouslyCached = loadCachedArticles();
@@ -461,6 +620,20 @@ async function fetchGoogleNews() {
     let placeholderCount = 0;
 
     try {
+        // Fetch from NewsAPI first (if available)
+        const newsApiArticles = await fetchNewsAPI();
+        console.log(`NewsAPI provided ${newsApiArticles.length} articles`);
+
+        // Add NewsAPI articles to our collection
+        newsApiArticles.forEach(article => {
+            if (!processedUrls.has(article.url)) {
+                processedUrls.add(article.url);
+                articles.push(article);
+            }
+        });
+
+        // Then fetch from Google News RSS feeds
+        console.log('Fetching from Google News RSS feeds...');
         for (const rssUrl of CONFIG.GOOGLE_NEWS_FEEDS) {
             try {
                 console.log(`Fetching: ${rssUrl}`);
@@ -530,8 +703,39 @@ async function fetchGoogleNews() {
             return true;
         });
 
+        console.log(`\nTotal unique articles before AI filtering: ${uniqueArticles.length}`);
+
+        // AI relevance filtering - apply to ALL articles from both sources
+        let filteredArticles = uniqueArticles;
+        if (geminiModel && uniqueArticles.length > 0) {
+            console.log('Verifying article relevance with AI (all sources)...');
+
+            // Process in batches of 50 to avoid overwhelming the AI
+            const FILTER_BATCH_SIZE = 50;
+            const relevantArticles = [];
+
+            for (let i = 0; i < uniqueArticles.length; i += FILTER_BATCH_SIZE) {
+                const batch = uniqueArticles.slice(i, i + FILTER_BATCH_SIZE);
+                console.log(`  Processing batch ${Math.floor(i / FILTER_BATCH_SIZE) + 1} (${batch.length} articles)...`);
+
+                const relevanceFlags = await verifyArticleRelevance(batch);
+
+                batch.forEach((article, index) => {
+                    const isRelevant = relevanceFlags[index];
+                    if (!isRelevant) {
+                        console.log(`  ✗ Filtered out: "${article.title.substring(0, 80)}..."`);
+                    } else {
+                        relevantArticles.push(article);
+                    }
+                });
+            }
+
+            console.log(`  ✓ ${relevantArticles.length}/${uniqueArticles.length} articles verified as wind farm related\n`);
+            filteredArticles = relevantArticles;
+        }
+
         // Merge with cached articles to preserve AI categories
-        const mergedArticles = mergeArticlesWithCache(uniqueArticles, previouslyCached);
+        const mergedArticles = mergeArticlesWithCache(filteredArticles, previouslyCached);
 
         // Sort by date (newest first)
         mergedArticles.sort((a, b) => {

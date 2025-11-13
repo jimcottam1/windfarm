@@ -167,31 +167,76 @@ JSON:`;
     }
 }
 
-// Cache for weekly digest
-let digestCache = null;
-let lastGenerated = null;
+// Cache key for Redis
+const DIGEST_CACHE_KEY = 'weekly-digest-cache';
+const DIGEST_TTL = 24 * 60 * 60; // 24 hours in seconds
+
+// Load cached digest from Redis
+async function loadCachedDigest() {
+    const redisClient = getRedisClient();
+    if (!redisClient) return null;
+
+    try {
+        const cached = await redisClient.get(DIGEST_CACHE_KEY);
+        if (cached) {
+            const digest = JSON.parse(cached);
+            console.log(`[Digest] Loaded cached digest from Redis (generated: ${digest.generated})`);
+            return digest;
+        }
+    } catch (error) {
+        console.error('[Digest] Error loading cached digest:', error.message);
+    }
+    return null;
+}
+
+// Save digest to Redis cache
+async function saveCachedDigest(digest) {
+    const redisClient = getRedisClient();
+    if (!redisClient) return;
+
+    try {
+        await redisClient.set(DIGEST_CACHE_KEY, JSON.stringify(digest), 'EX', DIGEST_TTL);
+        console.log('[Digest] Saved digest to Redis cache (24h TTL)');
+    } catch (error) {
+        console.error('[Digest] Error saving digest to cache:', error.message);
+    }
+}
 
 // Serverless function handler
 module.exports = async (req, res) => {
     try {
-        // Check if we have a cached digest that's less than 24 hours old
-        if (digestCache && lastGenerated) {
-            const hoursSinceLastDigest = (Date.now() - new Date(lastGenerated).getTime()) / (1000 * 60 * 60);
-            if (hoursSinceLastDigest < 24) {
-                console.log('Returning cached weekly digest');
-                return res.status(200).json(digestCache);
+        // Try to load from Redis cache first
+        const cachedDigest = await loadCachedDigest();
+
+        if (cachedDigest) {
+            const hoursSinceGeneration = (Date.now() - new Date(cachedDigest.generated).getTime()) / (1000 * 60 * 60);
+
+            if (hoursSinceGeneration < 24) {
+                console.log(`[Digest] Returning cached digest (${hoursSinceGeneration.toFixed(1)}h old)`);
+
+                // Set cache headers to prevent browser from requesting too often
+                res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+                res.setHeader('X-Digest-Source', 'redis-cache');
+                res.setHeader('X-Digest-Age-Hours', hoursSinceGeneration.toFixed(1));
+
+                return res.status(200).json(cachedDigest);
             }
         }
 
         // Generate fresh digest
-        console.log('Generating fresh weekly digest...');
+        console.log('[Digest] Generating fresh weekly digest...');
         const digest = await generateWeeklyDigest();
-        digestCache = digest;
-        lastGenerated = digest.generated;
+
+        // Save to Redis cache
+        await saveCachedDigest(digest);
+
+        // Set cache headers
+        res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=7200');
+        res.setHeader('X-Digest-Source', 'fresh-generation');
 
         res.status(200).json(digest);
     } catch (error) {
-        console.error('Error in weekly digest endpoint:', error);
+        console.error('[Digest] Error in weekly digest endpoint:', error);
         res.status(500).json({
             error: 'Failed to generate weekly digest',
             message: error.message

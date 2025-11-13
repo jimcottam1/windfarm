@@ -989,6 +989,235 @@ document.addEventListener('click', function(e) {
 });
 
 /* ========================================
+   WEEKLY AI DIGEST
+   ======================================== */
+
+// Build digest HTML from data
+function buildDigestHTML(data) {
+    let html = `
+        <div class="digest-summary">
+            <h3>Executive Summary</h3>
+            <p>${data.summary}</p>
+            ${data.dateRange ? `<span class="digest-date">Period: ${data.dateRange}</span>` : ''}
+            <span class="digest-meta">${data.articlesAnalyzed || data.totalArticles} articles analyzed</span>
+        </div>
+    `;
+
+    if (data.topStories && data.topStories.length > 0) {
+        html += `
+            <div class="digest-top-stories">
+                <h3>Top Stories</h3>
+                <ol class="top-stories-list">
+        `;
+        data.topStories.forEach(story => {
+            html += `
+                <li>
+                    <strong>${story.title}</strong>
+                    <p>${story.significance}</p>
+                    <span class="story-category category-${story.category}">${story.category}</span>
+                </li>
+            `;
+        });
+        html += `</ol></div>`;
+    }
+
+    if (data.insights && data.insights.length > 0) {
+        html += `
+            <div class="digest-insights">
+                <h3>Key Insights & Trends</h3>
+                <ul class="insights-list">
+        `;
+        data.insights.forEach(insight => {
+            html += `<li>${insight}</li>`;
+        });
+        html += `</ul></div>`;
+    }
+
+    if (data.breakdown) {
+        html += `
+            <div class="digest-breakdown">
+                <h3>Coverage Breakdown</h3>
+                <div class="breakdown-grid">
+        `;
+
+        if (data.breakdown.offshore !== undefined || data.breakdown.onshore !== undefined) {
+            html += `
+                <div class="breakdown-card">
+                    <h4>Type</h4>
+                    <div class="breakdown-stats">
+                        <span>Offshore: <strong>${data.breakdown.offshore || 0}</strong></span>
+                        <span>Onshore: <strong>${data.breakdown.onshore || 0}</strong></span>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (data.breakdown.provinces) {
+            const provinces = data.breakdown.provinces;
+            html += `
+                <div class="breakdown-card">
+                    <h4>By Province</h4>
+                    <div class="breakdown-stats">
+            `;
+            Object.entries(provinces).forEach(([province, count]) => {
+                html += `<span>${province}: <strong>${count}</strong></span>`;
+            });
+            html += `</div></div>`;
+        }
+
+        html += `</div></div>`;
+    }
+
+    html += `<div class="digest-footer">Generated: ${new Date(data.generated).toLocaleString('en-IE')}</div>`;
+    return html;
+}
+
+// Load Weekly Digest
+async function loadWeeklyDigest() {
+    const digestContent = document.getElementById('weeklyDigestContent');
+    digestContent.classList.remove('collapsed');
+    digestContent.innerHTML = '<div class="digest-loading">Generating AI weekly digest...</div>';
+
+    try {
+        const response = await fetch('/api/digest/weekly');
+        const data = await response.json();
+
+        if (data.error) {
+            digestContent.innerHTML = `<div class="digest-error">Error: ${data.error}</div>`;
+            return;
+        }
+
+        digestContent.innerHTML = buildDigestHTML(data);
+    } catch (error) {
+        console.error('Error loading weekly digest:', error);
+        digestContent.innerHTML = '<div class="digest-error">Failed to load weekly digest. Please try again.</div>';
+    }
+}
+
+// Toggle digest collapse/expand
+function toggleDigest(headerElement, contentElement) {
+    headerElement.classList.toggle('collapsed');
+    contentElement.classList.toggle('collapsed');
+}
+
+// Initialize digest
+document.addEventListener('DOMContentLoaded', function() {
+    const weeklyDigestHeader = document.getElementById('weeklyDigestHeader');
+    const weeklyDigestContent = document.getElementById('weeklyDigestContent');
+    const refreshWeeklyDigestBtn = document.getElementById('refreshWeeklyDigest');
+
+    if (weeklyDigestHeader && weeklyDigestContent) {
+        // Start collapsed
+        weeklyDigestHeader.classList.add('collapsed');
+
+        // Toggle on header click
+        weeklyDigestHeader.addEventListener('click', (e) => {
+            if (e.target.closest('.refresh-digest-btn')) return; // Don't toggle when clicking refresh
+            toggleDigest(weeklyDigestHeader, weeklyDigestContent);
+
+            // Load content if it hasn't been loaded yet
+            if (!weeklyDigestHeader.classList.contains('collapsed') &&
+                weeklyDigestContent.querySelector('.digest-loading')) {
+                loadWeeklyDigest();
+            }
+        });
+
+        if (refreshWeeklyDigestBtn) {
+            refreshWeeklyDigestBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                loadWeeklyDigest();
+            });
+        }
+    }
+});
+
+/* ========================================
+   ECONOMIC IMPACT CALCULATOR
+   ======================================== */
+
+// Industry standard multipliers (based on Irish & EU wind energy data)
+const CALCULATOR_CONSTANTS = {
+    // Jobs per MW (combined construction + operations)
+    // Construction: ~15 jobs per MW for 2-3 years
+    // Operations: ~0.3 jobs per MW for 25+ years
+    // Average: ~10 jobs per MW over lifetime
+    JOBS_PER_MW: 10,
+
+    // Investment cost per MW (€ millions)
+    // Onshore: €1.2-1.5M per MW
+    // Offshore: €3-4M per MW
+    // Average: €2M per MW
+    INVESTMENT_PER_MW: 2.0, // in millions
+
+    // CO2 savings (tonnes per year per MW)
+    // Based on displacing fossil fuel generation
+    // Average: 2,000 tonnes CO2 per MW per year
+    CO2_TONNES_PER_MW_YEAR: 2000,
+
+    // Homes powered per MW
+    // Average Irish home: ~4,200 kWh per year
+    // 1 MW wind turbine: ~2,500 MWh per year (capacity factor ~30%)
+    // Therefore: 2,500,000 / 4,200 ≈ 595 homes per MW
+    HOMES_PER_MW: 595
+};
+
+function calculateImpact(capacityMW) {
+    return {
+        jobs: Math.round(capacityMW * CALCULATOR_CONSTANTS.JOBS_PER_MW),
+        investmentMillions: (capacityMW * CALCULATOR_CONSTANTS.INVESTMENT_PER_MW).toFixed(1),
+        co2Tonnes: Math.round(capacityMW * CALCULATOR_CONSTANTS.CO2_TONNES_PER_MW_YEAR),
+        homes: Math.round(capacityMW * CALCULATOR_CONSTANTS.HOMES_PER_MW)
+    };
+}
+
+function formatNumber(num) {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function updateCalculatorResults() {
+    const capacityInput = document.getElementById('capacityInput');
+    const capacity = parseInt(capacityInput.value) || 0;
+
+    if (capacity < 1) {
+        document.getElementById('jobsCreated').textContent = '-';
+        document.getElementById('investment').textContent = '-';
+        document.getElementById('co2Saved').textContent = '-';
+        document.getElementById('homesPowered').textContent = '-';
+        return;
+    }
+
+    const impact = calculateImpact(capacity);
+
+    document.getElementById('jobsCreated').textContent = formatNumber(impact.jobs);
+    document.getElementById('investment').textContent = '€' + formatNumber(impact.investmentMillions) + 'M';
+    document.getElementById('co2Saved').textContent = formatNumber(impact.co2Tonnes) + ' tonnes';
+    document.getElementById('homesPowered').textContent = formatNumber(impact.homes);
+}
+
+// Initialize calculator
+document.addEventListener('DOMContentLoaded', function() {
+    const capacityInput = document.getElementById('capacityInput');
+    const presetButtons = document.querySelectorAll('.preset-btn');
+
+    if (capacityInput) {
+        // Update on input change
+        capacityInput.addEventListener('input', updateCalculatorResults);
+
+        // Initial calculation
+        updateCalculatorResults();
+    }
+
+    // Preset buttons
+    presetButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const capacity = this.getAttribute('data-capacity');
+            capacityInput.value = capacity;
+            updateCalculatorResults();
+        });
+    });
+});
+
+/* ========================================
    EXPORT FOR TESTING
    ======================================== */
 

@@ -7,6 +7,9 @@
     },
     "api/cron/refresh.js": {
       "maxDuration": 60
+    },
+    "api/digest/*.js": {
+      "maxDuration": 30
     }
   }
 }

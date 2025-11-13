@@ -11,45 +11,56 @@ if (process.env.GEMINI_API_KEY) {
     }
 }
 
-// Initialize Redis client
+// Initialize Redis client (lazy initialization)
 let redis = null;
-let redisReady = false;
 
-if (process.env.REDIS_URL) {
-    try {
-        const Redis = require('ioredis');
-        redis = new Redis(process.env.REDIS_URL, {
-            maxRetriesPerRequest: 3,
-            enableOfflineQueue: true,
-            connectTimeout: 10000,
-            lazyConnect: false,
-            retryStrategy: (times) => {
-                if (times > 3) return null;
-                return Math.min(times * 200, 2000);
-            }
-        });
+function getRedisClient() {
+    if (!redis && process.env.REDIS_URL) {
+        try {
+            const Redis = require('ioredis');
+            redis = new Redis(process.env.REDIS_URL, {
+                maxRetriesPerRequest: 3,
+                enableOfflineQueue: true,
+                connectTimeout: 5000,
+                lazyConnect: false,
+                retryStrategy: (times) => {
+                    if (times > 3) return null;
+                    return Math.min(times * 200, 2000);
+                }
+            });
 
-        redis.on('ready', () => { redisReady = true; });
-        redis.on('error', () => { redisReady = false; });
-        redis.on('close', () => { redisReady = false; });
-    } catch (error) {
-        console.error('Failed to initialize Redis:', error.message);
-        redis = null;
+            redis.on('error', (err) => {
+                console.error('[Redis] Error:', err.message);
+            });
+        } catch (error) {
+            console.error('[Redis] Failed to initialize:', error.message);
+            redis = null;
+        }
     }
+    return redis;
 }
 
 // Load cached articles from Redis
 async function loadArticlesFromCache() {
-    if (!redis || !redisReady) {
+    const redisClient = getRedisClient();
+
+    if (!redisClient) {
         console.log('[Digest] Redis not available, using empty cache');
         return [];
     }
 
     try {
-        const cached = await redis.get('articles_cache');
+        // Use timeout to prevent hanging
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 5000));
+        const dataPromise = redisClient.get('articles-cache'); // Note: hyphen, not underscore
+        const cached = await Promise.race([dataPromise, timeout]);
+
         if (cached) {
             const data = JSON.parse(cached);
+            console.log(`[Digest] Loaded ${data.articles?.length || 0} articles from cache`);
             return data.articles || [];
+        } else {
+            console.log('[Digest] No cached articles found in Redis');
         }
     } catch (error) {
         console.error('[Digest] Error loading from Redis:', error.message);

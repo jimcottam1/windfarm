@@ -1095,39 +1095,48 @@ async function loadWeeklyDigest() {
 }
 
 // Toggle digest collapse/expand
-function toggleDigest(headerElement, contentElement) {
-    headerElement.classList.toggle('collapsed');
-    contentElement.classList.toggle('collapsed');
+function toggleDigest() {
+    const weeklyDigestContent = document.getElementById('weeklyDigestContent');
+    const toggleBtn = document.getElementById('toggleWeeklyDigest');
+    const toggleText = toggleBtn.querySelector('.toggle-text');
+    const isCollapsed = weeklyDigestContent.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Expanding
+        weeklyDigestContent.classList.remove('collapsed');
+        toggleText.textContent = 'Close Digest';
+
+        // Rotate arrow icon
+        toggleBtn.classList.add('expanded');
+
+        // Load content if it hasn't been loaded yet
+        if (weeklyDigestContent.querySelector('.digest-loading')) {
+            loadWeeklyDigest();
+        }
+
+        // Smooth scroll to digest content after a brief delay
+        setTimeout(() => {
+            weeklyDigestContent.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    } else {
+        // Collapsing
+        weeklyDigestContent.classList.add('collapsed');
+        toggleText.textContent = 'Read Full Digest';
+        toggleBtn.classList.remove('expanded');
+    }
 }
 
 // Initialize digest
 document.addEventListener('DOMContentLoaded', function() {
-    const weeklyDigestHeader = document.getElementById('weeklyDigestHeader');
     const weeklyDigestContent = document.getElementById('weeklyDigestContent');
-    const refreshWeeklyDigestBtn = document.getElementById('refreshWeeklyDigest');
+    const toggleWeeklyDigestBtn = document.getElementById('toggleWeeklyDigest');
 
-    if (weeklyDigestHeader && weeklyDigestContent) {
-        // Start collapsed
-        weeklyDigestHeader.classList.add('collapsed');
+    if (weeklyDigestContent && toggleWeeklyDigestBtn) {
+        // Ensure starts collapsed
+        weeklyDigestContent.classList.add('collapsed');
 
-        // Toggle on header click
-        weeklyDigestHeader.addEventListener('click', (e) => {
-            if (e.target.closest('.refresh-digest-btn')) return; // Don't toggle when clicking refresh
-            toggleDigest(weeklyDigestHeader, weeklyDigestContent);
-
-            // Load content if it hasn't been loaded yet
-            if (!weeklyDigestHeader.classList.contains('collapsed') &&
-                weeklyDigestContent.querySelector('.digest-loading')) {
-                loadWeeklyDigest();
-            }
-        });
-
-        if (refreshWeeklyDigestBtn) {
-            refreshWeeklyDigestBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                loadWeeklyDigest();
-            });
-        }
+        // Toggle on button click
+        toggleWeeklyDigestBtn.addEventListener('click', toggleDigest);
     }
 });
 

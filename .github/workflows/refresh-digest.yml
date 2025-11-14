@@ -1,0 +1,44 @@
+name: Refresh Weekly Digest
+
+on:
+  # Run every day at 6 AM UTC (7 AM Irish time in winter, 8 AM in summer)
+  schedule:
+    - cron: '0 6 * * *'
+
+  # Allow manual triggering from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  refresh-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Refresh Weekly Digest
+        run: |
+          echo "🔄 Triggering weekly digest refresh..."
+
+          # Make request to the digest endpoint to trigger regeneration
+          # The endpoint will generate a fresh digest if cache is older than 24h
+          response=$(curl -s -w "\n%{http_code}" https://windfarm-news.vercel.app/api/digest/weekly)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "HTTP Status: $http_code"
+
+          if [ "$http_code" = "200" ]; then
+            echo "✅ Weekly digest refreshed successfully"
+
+            # Extract some info from the response
+            echo "$body" | jq -r '"Generated: " + .generated'
+            echo "$body" | jq -r '"Articles analyzed: " + (.articlesAnalyzed // .totalArticles | tostring)'
+          else
+            echo "❌ Failed to refresh digest (HTTP $http_code)"
+            echo "$body"
+            exit 1
+          fi
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "⚠️ Weekly digest refresh failed!"
+          echo "Check the logs above for details."

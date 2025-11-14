@@ -533,6 +533,33 @@ function hideLoadMoreButton() {
     }
 }
 
+// Find related articles based on province, tags, or source
+function findRelatedArticles(article, maxResults = 3) {
+    const related = allArticles
+        .filter(a => a.url !== article.url) // Exclude the current article
+        .map(a => {
+            let score = 0;
+
+            // Same province gets highest score
+            if (a.province === article.province) score += 3;
+
+            // Shared tags
+            const sharedTags = a.tags.filter(tag => article.tags.includes(tag));
+            score += sharedTags.length * 2;
+
+            // Same source gets a small boost
+            if (a.source === article.source) score += 1;
+
+            return { article: a, score };
+        })
+        .filter(item => item.score > 0) // Only keep articles with some relation
+        .sort((a, b) => b.score - a.score) // Sort by score
+        .slice(0, maxResults) // Take top N
+        .map(item => item.article);
+
+    return related;
+}
+
 function createNewsCard(article) {
     const card = document.createElement('div');
     card.className = 'news-card';
@@ -546,6 +573,25 @@ function createNewsCard(article) {
     const tagsHTML = article.tags.map(tag =>
         `<span class="tag ${tag}">${tag}</span>`
     ).join('');
+
+    // Find related articles
+    const relatedArticles = findRelatedArticles(article, 3);
+    const relatedHTML = relatedArticles.length > 0 ? `
+        <div class="related-articles">
+            <h4>Related Articles</h4>
+            <div class="related-articles-list">
+                ${relatedArticles.map(related => `
+                    <a href="${related.url}" target="_blank" class="related-article-item">
+                        <span class="related-article-title">${related.title}</span>
+                        <span class="related-article-meta">
+                            <span class="province-badge province-${related.province.toLowerCase()}">${related.province}</span>
+                            <span class="related-article-date">${getTimeAgo(related.date)}</span>
+                        </span>
+                    </a>
+                `).join('')}
+            </div>
+        </div>
+    ` : '';
 
     // Encode URLs for sharing
     const encodedUrl = encodeURIComponent(article.url);
@@ -569,6 +615,7 @@ function createNewsCard(article) {
             </div>
             <h3>${article.title}</h3>
             <p class="news-card-description">${article.description || 'No description available.'}</p>
+            ${relatedHTML}
             <div class="news-card-footer">
                 <div class="news-card-footer-left">
                     <span class="news-card-source">${article.source}</span>

@@ -535,24 +535,41 @@ function hideLoadMoreButton() {
 
 // Find related articles based on province, tags, or source
 function findRelatedArticles(article, maxResults = 3) {
+    // Extract keywords from title (ignore common words)
+    const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'wind', 'farm', 'energy', 'project', 'new', 'plan']);
+    const titleWords = article.title.toLowerCase()
+        .split(/\s+/)
+        .filter(word => word.length > 3 && !commonWords.has(word));
+
     const related = allArticles
         .filter(a => a.url !== article.url) // Exclude the current article
         .map(a => {
             let score = 0;
 
-            // Same province gets highest score
-            if (a.province === article.province) score += 3;
+            // Same province gets high score
+            if (a.province === article.province && article.province !== 'National') {
+                score += 5;
+            }
 
-            // Shared tags
+            // Shared tags (but require at least 2 shared tags for points)
             const sharedTags = a.tags.filter(tag => article.tags.includes(tag));
-            score += sharedTags.length * 2;
+            if (sharedTags.length >= 2) {
+                score += sharedTags.length * 3;
+            }
+
+            // Title keyword matching
+            const otherTitleWords = a.title.toLowerCase()
+                .split(/\s+/)
+                .filter(word => word.length > 3 && !commonWords.has(word));
+            const sharedKeywords = titleWords.filter(word => otherTitleWords.includes(word));
+            score += sharedKeywords.length * 4;
 
             // Same source gets a small boost
             if (a.source === article.source) score += 1;
 
             return { article: a, score };
         })
-        .filter(item => item.score > 0) // Only keep articles with some relation
+        .filter(item => item.score >= 5) // Require minimum score of 5 for relevance
         .sort((a, b) => b.score - a.score) // Sort by score
         .slice(0, maxResults) // Take top N
         .map(item => item.article);

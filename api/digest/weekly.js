@@ -116,7 +116,6 @@ Generate a weekly digest with:
 1. A brief executive summary (2-3 sentences) of the week's major developments
 2. Top 5 most important stories (with title and brief explanation of significance)
 3. Key insights/trends (3-5 bullet points about patterns, themes, or notable developments)
-4. Breakdown by category (offshore vs onshore, by province, by project stage)
 
 Return JSON in this exact format:
 {
@@ -129,12 +128,6 @@ Return JSON in this exact format:
     "Key trend or pattern observed...",
     ...3-5 insights
   ],
-  "breakdown": {
-    "offshore": number of offshore articles,
-    "onshore": number of onshore articles,
-    "provinces": {"Munster": count, "Leinster": count, "Connacht": count, "Ulster": count, "National": count},
-    "stages": {"planning": count, "construction": count, "operational": count}
-  },
   "totalArticles": ${articlesToAnalyze.length},
   "dateRange": "Nov 6-13, 2025"
 }

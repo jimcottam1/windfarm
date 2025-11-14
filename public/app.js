@@ -576,10 +576,16 @@ function createNewsCard(article) {
 
     // Find related articles
     const relatedArticles = findRelatedArticles(article, 3);
+    const relatedId = `related-${Math.random().toString(36).substr(2, 9)}`;
     const relatedHTML = relatedArticles.length > 0 ? `
         <div class="related-articles">
-            <h4>Related Articles</h4>
-            <div class="related-articles-list">
+            <button class="related-articles-toggle" onclick="toggleRelatedArticles('${relatedId}')">
+                <span>Related Articles (${relatedArticles.length})</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"/>
+                </svg>
+            </button>
+            <div id="${relatedId}" class="related-articles-list collapsed">
                 ${relatedArticles.map(related => `
                     <a href="${related.url}" target="_blank" class="related-article-item">
                         <span class="related-article-title">${related.title}</span>
@@ -922,10 +928,16 @@ function updateTrending() {
 
         // Find related articles
         const relatedArticles = findRelatedArticles(article, 3);
+        const relatedId = `related-${Math.random().toString(36).substr(2, 9)}`;
         const relatedHTML = relatedArticles.length > 0 ? `
             <div class="related-articles">
-                <h4>Related Articles</h4>
-                <div class="related-articles-list">
+                <button class="related-articles-toggle" onclick="toggleRelatedArticles('${relatedId}')">
+                    <span>Related Articles (${relatedArticles.length})</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </button>
+                <div id="${relatedId}" class="related-articles-list collapsed">
                     ${relatedArticles.map(related => `
                         <a href="${related.url}" target="_blank" class="related-article-item">
                             <span class="related-article-title">${related.title}</span>
@@ -1100,40 +1112,6 @@ function buildDigestHTML(data) {
         html += `</ul></div>`;
     }
 
-    if (data.breakdown) {
-        html += `
-            <div class="digest-breakdown">
-                <h3>Coverage Breakdown</h3>
-                <div class="breakdown-grid">
-        `;
-
-        if (data.breakdown.offshore !== undefined || data.breakdown.onshore !== undefined) {
-            html += `
-                <div class="breakdown-card">
-                    <h4>Type</h4>
-                    <div class="breakdown-stats">
-                        <span>Offshore: <strong>${data.breakdown.offshore || 0}</strong></span>
-                        <span>Onshore: <strong>${data.breakdown.onshore || 0}</strong></span>
-                    </div>
-                </div>
-            `;
-        }
-
-        if (data.breakdown.provinces) {
-            const provinces = data.breakdown.provinces;
-            html += `
-                <div class="breakdown-card">
-                    <h4>By Province</h4>
-                    <div class="breakdown-stats">
-            `;
-            Object.entries(provinces).forEach(([province, count]) => {
-                html += `<span>${province}: <strong>${count}</strong></span>`;
-            });
-            html += `</div></div>`;
-        }
-
-        html += `</div></div>`;
-    }
 
     html += `<div class="digest-footer">Generated: ${new Date(data.generated).toLocaleString('en-IE')}</div>`;
     return html;
@@ -1190,6 +1168,21 @@ function toggleDigest() {
         weeklyDigestContent.classList.add('collapsed');
         toggleText.textContent = 'Read Full Digest';
         toggleBtn.classList.remove('expanded');
+    }
+}
+
+// Toggle related articles collapse/expand
+function toggleRelatedArticles(relatedId) {
+    const relatedList = document.getElementById(relatedId);
+    const button = relatedList.previousElementSibling;
+    const isCollapsed = relatedList.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        relatedList.classList.remove('collapsed');
+        button.classList.add('expanded');
+    } else {
+        relatedList.classList.add('collapsed');
+        button.classList.remove('expanded');
     }
 }
 

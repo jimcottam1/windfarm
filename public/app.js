@@ -989,7 +989,7 @@ document.addEventListener('click', function(e) {
 });
 
 /* ========================================
-   WEEKLY AI DIGEST
+   WEEKLY DIGEST
    ======================================== */
 
 // Build digest HTML from data

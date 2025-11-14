@@ -1076,7 +1076,7 @@ function buildDigestHTML(data) {
 async function loadWeeklyDigest() {
     const digestContent = document.getElementById('weeklyDigestContent');
     digestContent.classList.remove('collapsed');
-    digestContent.innerHTML = '<div class="digest-loading">Generating AI weekly digest...</div>';
+    digestContent.innerHTML = '<div class="digest-loading">Loading weekly digest...</div>';
 
     try {
         const response = await fetch('/api/digest/weekly');

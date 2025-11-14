@@ -19,7 +19,7 @@ jobs:
 
           # Make request to the digest endpoint to trigger regeneration
           # The endpoint will generate a fresh digest if cache is older than 24h
-          response=$(curl -s -w "\n%{http_code}" https://windfarm-news.vercel.app/api/digest/weekly)
+          response=$(curl -s -w "\n%{http_code}" https://windfarm-zeta.vercel.app/api/digest/weekly)
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 

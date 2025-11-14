@@ -920,6 +920,25 @@ function updateTrending() {
         const timeAgo = getTimeAgo(article.date);
         const primaryTag = article.tags[0] || 'news';
 
+        // Find related articles
+        const relatedArticles = findRelatedArticles(article, 3);
+        const relatedHTML = relatedArticles.length > 0 ? `
+            <div class="related-articles">
+                <h4>Related Articles</h4>
+                <div class="related-articles-list">
+                    ${relatedArticles.map(related => `
+                        <a href="${related.url}" target="_blank" class="related-article-item">
+                            <span class="related-article-title">${related.title}</span>
+                            <span class="related-article-meta">
+                                <span class="province-badge province-${related.province.toLowerCase()}">${related.province}</span>
+                                <span class="related-article-date">${getTimeAgo(related.date)}</span>
+                            </span>
+                        </a>
+                    `).join('')}
+                </div>
+            </div>
+        ` : '';
+
         card.innerHTML = `
             <div class="trending-card-image">
                 ${article.image ?
@@ -944,6 +963,7 @@ function updateTrending() {
                     <span>${article.source}</span>
                     <span>${timeAgo}</span>
                 </div>
+                ${relatedHTML}
                 <a href="${article.url}" target="_blank" class="trending-card-link">
                     Read more
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1173,6 +1193,31 @@ function toggleDigest() {
     }
 }
 
+// Toggle trending collapse/expand
+function toggleTrending() {
+    const trendingGrid = document.getElementById('trendingGrid');
+    const toggleBtn = document.getElementById('toggleTrending');
+    const toggleText = toggleBtn.querySelector('.toggle-text');
+    const isCollapsed = trendingGrid.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Expanding
+        trendingGrid.classList.remove('collapsed');
+        toggleText.textContent = 'Hide Trending';
+        toggleBtn.classList.add('expanded');
+
+        // Smooth scroll to trending content after a brief delay
+        setTimeout(() => {
+            trendingGrid.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    } else {
+        // Collapsing
+        trendingGrid.classList.add('collapsed');
+        toggleText.textContent = 'Show Trending';
+        toggleBtn.classList.remove('expanded');
+    }
+}
+
 // Initialize digest
 document.addEventListener('DOMContentLoaded', function() {
     const weeklyDigestContent = document.getElementById('weeklyDigestContent');
@@ -1184,6 +1229,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Toggle on button click
         toggleWeeklyDigestBtn.addEventListener('click', toggleDigest);
+    }
+
+    // Initialize trending toggle
+    const trendingGrid = document.getElementById('trendingGrid');
+    const toggleTrendingBtn = document.getElementById('toggleTrending');
+
+    if (trendingGrid && toggleTrendingBtn) {
+        // Ensure starts collapsed
+        trendingGrid.classList.add('collapsed');
+
+        // Toggle on button click
+        toggleTrendingBtn.addEventListener('click', toggleTrending);
     }
 });
 
